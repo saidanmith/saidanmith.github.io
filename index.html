@@ -8,6 +8,9 @@
     <!-- PWA MANIFEST LINK (REQUIRED) -->
     <link rel="manifest" href="/manifest.json">
     
+    <!-- FIX: Favicon (Resolves 404 error) -->
+    <link rel="icon" href="https://placehold.co/32x32/4f46e5/ffffff?text=GT" type="image/png">
+    
     <!-- PWA SERVICE WORKER REGISTRATION (REQUIRED) -->
     <script>
         // Check for Service Worker support and register on load
@@ -30,9 +33,9 @@
 
     <!-- DEPENDENCIES -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
         /* Hide scrollbar for cleaner mobile UI */
@@ -40,7 +43,7 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         /* Tap highlight removal */
         * { -webkit-tap-highlight-color: transparent; }
-        @keyframes fadeIn { from { opacity: 0; } to opacity: 1; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
 
         /* Custom styles for the circular timer */
@@ -64,8 +67,10 @@
 
     <div id="root"></div>
 
-    <script type="text/babel">
+    <script type="text/javascript">
+        // --- REACT.CREATEELEMENT CONVERSION (Babel eliminated) ---
         const { useState, useEffect, useMemo, useRef } = React;
+        const e = React.createElement; // Shorthand for React.createElement
 
         // --- GLOBAL DATA STRUCTURES ---
         const GROUPS = {
@@ -76,7 +81,6 @@
         const ALL_MUSCLES = Object.values(GROUPS).flat();
         const STORAGE_KEY = 'localGymTrackerLogs';
         
-        // Define Muscle Groups for Split Charts
         const UPPER_MUSCLES = GROUPS.Push.concat(GROUPS.Pull); 
         const LOWER_MUSCLES = GROUPS["Legs & Core"]; 
 
@@ -121,13 +125,12 @@
                 const json = localStorage.getItem(STORAGE_KEY);
                 const storedLogs = json ? JSON.parse(json) : {};
                 
-                // Returns empty object if no data is found or if it's new user (no mock data)
                 if (Object.keys(storedLogs).length === 0) {
                     return {};
                 }
                 return storedLogs;
-            } catch (e) {
-                console.error("Error loading logs from localStorage:", e);
+            } catch (error) {
+                console.error("Error loading logs from localStorage:", error);
                 return {}; 
             }
         };
@@ -135,9 +138,8 @@
         const saveLogs = (logs) => {
             try {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
-            } catch (e) {
-                console.error("Error saving logs to localStorage:", e);
-                console.warn("Storage failed! Your browser may be full or set to private mode.");
+            } catch (error) {
+                console.error("Error saving logs to localStorage:", error);
             }
         };
 
@@ -146,51 +148,42 @@
 
         // 0. TimerView Component 
         const TimerView = () => {
-            // mode: 'off', 'set', 'rest'
             const [mode, setMode] = useState('off'); 
-            const [setTime, setSetTime] = useState(0); // Time in seconds for current set (counts up or down)
-            const [restTimePreset, setRestTimePreset] = useState(60); // Configurable rest time preset
-            const [restTimeLeft, setRestTimeLeft] = useState(0); // Rest time left in seconds
-            const [targetSetDuration, setTargetSetDuration] = useState(0); // The time taken for the first set
+            const [setTime, setSetTime] = useState(0); 
+            const [restTimePreset, setRestTimePreset] = useState(60); 
+            const [restTimeLeft, setRestTimeLeft] = useState(0); 
+            const [targetSetDuration, setTargetSetDuration] = useState(0); 
             const [isRecordingSetOne, setIsRecordingSetOne] = useState(true); 
             
             const timerRef = useRef(null); 
             
-            const circumference = 2 * Math.PI * 45; // 282.74
+            const circumference = 2 * Math.PI * 45; 
 
-            // Helper function to format seconds to MM:SS
             const formatTime = (totalSeconds) => {
                 const minutes = Math.floor(totalSeconds / 60);
                 const seconds = totalSeconds % 60;
                 return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
             };
 
-            // Timer Tick Effect (Handles all counting and *automatic* transitions)
             useEffect(() => {
-                // 1. Clear previous interval on dependency change
                 if (timerRef.current) {
                     clearInterval(timerRef.current);
                     timerRef.current = null;
                 }
 
-                // 2. Stop logic for 'off' mode
                 if (mode === 'off') {
                     return;
                 }
 
-                // 3. Setup new interval
                 const interval = setInterval(() => {
                     
                     if (mode === 'set') {
                         if (isRecordingSetOne) {
-                            // Set 1: Count UP (Manual stop required)
                             setSetTime(prevSetTime => prevSetTime + 1);
                         } else {
-                            // Sets 2+: Count DOWN from target duration (Auto-transition)
                             setSetTime(prevSetTime => {
                                 if (prevSetTime <= 1) {
-                                    // Set countdown finished: immediately start rest
-                                    setSetTime(0); // Set time displays 0 momentarily
+                                    setSetTime(0); 
                                     setRestTimeLeft(restTimePreset);
                                     setMode('rest');
                                     return 0;
@@ -199,10 +192,8 @@
                             });
                         }
                     } else if (mode === 'rest') {
-                        // Rest: Count DOWN (Auto-transition)
                         setRestTimeLeft(prevRestTime => {
                             if (prevRestTime <= 1) {
-                                // Rest finished: immediately start next set countdown
                                 setSetTime(targetSetDuration); 
                                 setMode('set');
                                 return 0;
@@ -212,82 +203,64 @@
                     }
                 }, 1000);
 
-                timerRef.current = interval; // Store the new ID
+                timerRef.current = interval; 
                 
-                // 4. Cleanup function
                 return () => {
                     if (timerRef.current) {
                         clearInterval(timerRef.current);
                         timerRef.current = null;
                     }
                 };
-            // Re-run effect only when mode or essential config changes
             }, [mode, isRecordingSetOne, restTimePreset, targetSetDuration]); 
 
 
-            // --- ACTIONS (Primarily for manual START/STOP/SKIP) ---
-
-            // Start Timer (Initial setup or restart after reset)
             const handleStartSet = () => {
                 if (mode === 'off') {
                     if (isRecordingSetOne) {
-                         // Start Set 1 - Count Up from 0
                         setSetTime(0); 
                     } else {
-                        // Start Set 2+ - Count Down from Target
                         setSetTime(targetSetDuration); 
                     }
                     setMode('set');
                 }
             };
 
-            // Manual End Set and Transition to Rest (Required for Set 1, optional for Set 2+)
             const handleManualSetEnd = () => {
                 if (mode !== 'set') return;
 
                 let durationToRecord = 0;
                 
                 if (isRecordingSetOne) {
-                    // SET 1 JUST FINISHED: Record the time taken
                     durationToRecord = setTime;
                     setTargetSetDuration(durationToRecord);
-                    setIsRecordingSetOne(false); // No longer recording the first set
+                    setIsRecordingSetOne(false); 
                 } else {
-                    // SET 2+ MANUAL STOP: Use the established target duration
                     durationToRecord = targetSetDuration;
                 }
                 
-                // 1. Reset set time display for transition clarity
                 setSetTime(0); 
-                
-                // 2. Start rest timer with preset
                 setRestTimeLeft(restTimePreset);
                 setMode('rest');
             };
 
-            // Manual End Rest (Skip Rest) and Transition back to Set Countdown
             const handleSkipRest = () => {
                 if (mode !== 'rest') return;
                 
-                // 1. Start set countdown using recorded duration
                 setSetTime(targetSetDuration); 
                 setMode('set');
             };
 
-            // Reset all state for new exercise/new set structure
             const handleReset = () => {
                 setMode('off');
                 setSetTime(0);
                 setRestTimeLeft(0);
                 setTargetSetDuration(0);
-                setIsRecordingSetOne(true); // Allow re-recording of the first set
+                setIsRecordingSetOne(true); 
             };
 
 
-            // --- UI Rendering logic ---
             let displayTime, progressPercentage, displayLabel, primaryColor, secondaryLabel = null;
             let buttonText, buttonAction, buttonColor;
-            let isCounting = mode === 'set' || mode === 'rest';
 
             if (mode === 'off') {
                 displayTime = formatTime(0);
@@ -304,23 +277,21 @@
                 primaryColor = 'text-indigo-400';
 
                 if (isRecordingSetOne) {
-                    // SET 1: Counting UP (Requires manual stop)
                     displayLabel = 'Set 1 (Recording)';
                     secondaryLabel = 'Time taken for Set 1 will be the target duration.';
-                    progressPercentage = 0; // No progress ring for count up
+                    progressPercentage = 0; 
 
                     buttonText = 'End Set 1 & Start Rest';
                     buttonAction = handleManualSetEnd;
                     buttonColor = 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-800/50';
 
                 } else {
-                    // SET 2+: Counting DOWN (Auto-transitions at 0)
                     displayLabel = 'Set Countdown (Auto-Rest)';
                     secondaryLabel = `Target: ${formatTime(targetSetDuration)}`;
                     progressPercentage = (setTime / targetSetDuration) * 100;
 
                     buttonText = 'Manual Stop & Start Rest';
-                    buttonAction = handleManualSetEnd; // User can end before time is up
+                    buttonAction = handleManualSetEnd; 
                     buttonColor = 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-800/50';
                 }
             
@@ -338,103 +309,80 @@
             }
 
 
-            // Calculate stroke offset for circular countdown
             const strokeDashoffset = circumference - (progressPercentage / 100) * circumference;
             const progressColor = mode === 'set' && !isRecordingSetOne ? '#a5b4fc' : '#10b981';
             const backgroundColor = mode !== 'off' ? 'bg-gray-800/50' : 'bg-gray-800/50';
             const ringBaseColor = targetSetDuration > 0 && !isRecordingSetOne ? '#374151' : '#4b5563';
 
-            // Rest Time Preset Adjuster
             const RestTimeAdjuster = ({ time, setTime }) => (
-                <div className="flex items-center space-x-4 bg-gray-800 p-3 rounded-xl border border-gray-700">
-                    <span className="text-sm font-medium text-gray-400 w-1/3">Rest Duration:</span>
-                    <div className="flex items-center space-x-2 flex-grow justify-end">
-                        <button 
-                            onClick={() => setTime(Math.max(30, time - 15))} 
-                            className="w-8 h-8 flex items-center justify-center bg-gray-700 rounded-lg text-lg active:scale-95 transition"
-                        >
-                            −
-                        </button>
-                        <span className="text-lg font-bold w-12 text-center text-white">{time}s</span>
-                        <button 
-                            onClick={() => setTime(Math.min(180, time + 15))} 
-                            className="w-8 h-8 flex items-center justify-center bg-indigo-600 rounded-lg text-lg active:scale-95 transition"
-                        >
-                            +
-                        </button>
-                    </div>
-                </div>
+                e('div', { className: "flex items-center space-x-4 bg-gray-800 p-3 rounded-xl border border-gray-700" },
+                    e('span', { className: "text-sm font-medium text-gray-400 w-1/3" }, "Rest Duration:"),
+                    e('div', { className: "flex items-center space-x-2 flex-grow justify-end" },
+                        e('button', { 
+                            onClick: () => setTime(Math.max(30, time - 15)), 
+                            className: "w-8 h-8 flex items-center justify-center bg-gray-700 rounded-lg text-lg active:scale-95 transition"
+                        }, "−"),
+                        e('span', { className: "text-lg font-bold w-12 text-center text-white" }, `${time}s`),
+                        e('button', { 
+                            onClick: () => setTime(Math.min(180, time + 15)), 
+                            className: "w-8 h-8 flex items-center justify-center bg-indigo-600 rounded-lg text-lg active:scale-95 transition"
+                        }, "+")
+                    )
+                )
             );
 
-            return (
-                <div className="p-4 pb-24 space-y-8 flex flex-col items-center animate-fade-in">
-                    
-                    {/* Timer Display */}
-                    <div className={`relative w-64 h-64 flex items-center justify-center mt-8 p-4 rounded-full ${backgroundColor}`}>
-                        {/* SVG Circular Progress Bar */}
-                        <svg className="absolute" width="200" height="200" viewBox="0 0 100 100">
-                            {/* Background Ring */}
-                            <circle cx="50" cy="50" r="45" fill="none" stroke={ringBaseColor} strokeWidth="10" />
-                            {/* Progress Ring - Only active if counting down */}
-                            {mode === 'set' && !isRecordingSetOne || mode === 'rest' ? (
-                                <circle
-                                    className="timer-ring"
-                                    cx="50"
-                                    cy="50"
-                                    r="45"
-                                    fill="none"
-                                    stroke={progressColor}
-                                    strokeWidth="8"
-                                    strokeLinecap="round"
-                                    style={{ strokeDashoffset: strokeDashoffset }}
-                                />
-                            ) : null}
-                            {/* Pulse for Counting Up (Set 1 Recording) */}
-                             {isRecordingSetOne && mode === 'set' && (
-                                <circle cx="50" cy="50" r="45" fill="none" stroke="#a5b4fc" strokeWidth="4" className="timer-flash" />
-                            )}
-                        </svg>
-
-                        {/* Time Text */}
-                        <div className="flex flex-col items-center">
-                            <h1 className={`text-6xl font-extrabold ${primaryColor} transition-colors`}>{displayTime}</h1>
-                            <p className="text-sm text-gray-500 font-semibold mt-1">{displayLabel}</p>
-                            {secondaryLabel && (
-                                <p className="text-xs text-gray-500 mt-1">{secondaryLabel}</p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Action Button */}
-                    <button 
-                        onClick={buttonAction}
-                        className={`w-full max-w-xs p-4 text-white font-bold rounded-xl transition transform active:scale-[.98] shadow-lg ${buttonColor}`}
-                    >
-                        {buttonText}
-                    </button>
-                    
-                    {/* Config and Reset */}
-                    <div className="w-full max-w-xs space-y-4 pt-4">
-                        <RestTimeAdjuster time={restTimePreset} setTime={setRestTimePreset} />
-                        
-                        {targetSetDuration > 0 && (
-                            <div className="p-3 bg-gray-800 rounded-xl border border-gray-700 text-center">
-                                <span className="text-xs font-medium text-gray-400">Target Set Duration (Set 1 Time):</span>
-                                <p className="text-xl font-bold text-indigo-400">{formatTime(targetSetDuration)}</p>
-                            </div>
-                        )}
-
-                        <button 
-                            onClick={handleReset}
-                            className="w-full p-3 text-red-400 font-semibold bg-gray-800 rounded-xl border border-red-900 hover:bg-red-900/50 transition active:scale-[.98]"
-                        >
-                            <div className="flex items-center justify-center space-x-2">
-                                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11.95 2.05a8 8 0 100 15.908M12 2v4m-3 2l-2 2m8-2l2 2m-8-2v4m-2-2h4"/></svg>
-                                <span>Reset & Restart Set 1 Recording</span>
-                            </div>
-                        </button>
-                    </div>
-                </div>
+            return e('div', { className: "p-4 pb-24 space-y-8 flex flex-col items-center animate-fade-in" },
+                e('div', { className: `relative w-64 h-64 flex items-center justify-center mt-8 p-4 rounded-full ${backgroundColor}` },
+                    e('svg', { className: "absolute", width: "200", height: "200", viewBox: "0 0 100 100" },
+                        e('circle', { cx: "50", cy: "50", r: "45", fill: "none", stroke: ringBaseColor, strokeWidth: "10" }),
+                        ((mode === 'set' && !isRecordingSetOne) || mode === 'rest') ? (
+                            e('circle', {
+                                className: "timer-ring",
+                                cx: "50",
+                                cy: "50",
+                                r: "45",
+                                fill: "none",
+                                stroke: progressColor,
+                                strokeWidth: "8",
+                                strokeLinecap: "round",
+                                style: { strokeDashoffset: strokeDashoffset }
+                            })
+                        ) : null,
+                        (isRecordingSetOne && mode === 'set') && (
+                            e('circle', { cx: "50", cy: "50", r: "45", fill: "none", stroke: "#a5b4fc", strokeWidth: "4", className: "timer-flash" })
+                        )
+                    ),
+                    e('div', { className: "flex flex-col items-center" },
+                        e('h1', { className: `text-6xl font-extrabold ${primaryColor} transition-colors` }, displayTime),
+                        e('p', { className: "text-sm text-gray-500 font-semibold mt-1" }, displayLabel),
+                        secondaryLabel && e('p', { className: "text-xs text-gray-500 mt-1" }, secondaryLabel)
+                    )
+                ),
+                e('button', { 
+                    onClick: buttonAction,
+                    className: `w-full max-w-xs p-4 text-white font-bold rounded-xl transition transform active:scale-[.98] shadow-lg ${buttonColor}`
+                }, buttonText),
+                
+                e('div', { className: "w-full max-w-xs space-y-4 pt-4" },
+                    e(RestTimeAdjuster, { time: restTimePreset, setTime: setRestTimePreset }),
+                    targetSetDuration > 0 && (
+                        e('div', { className: "p-3 bg-gray-800 rounded-xl border border-gray-700 text-center" },
+                            e('span', { className: "text-xs font-medium text-gray-400" }, "Target Set Duration (Set 1 Time):"),
+                            e('p', { className: "text-xl font-bold text-indigo-400" }, formatTime(targetSetDuration))
+                        )
+                    ),
+                    e('button', { 
+                        onClick: handleReset,
+                        className: "w-full p-3 text-red-400 font-semibold bg-gray-800 rounded-xl border border-red-900 hover:bg-red-900/50 transition active:scale-[.98]"
+                    }, 
+                        e('div', { className: "flex items-center justify-center space-x-2" },
+                            e('svg', { width: "20", height: "20", fill: "none", stroke: "currentColor", strokeWidth: "2" }, 
+                                e('path', { d: "M11.95 2.05a8 8 0 100 15.908M12 2v4m-3 2l-2 2m8-2l2 2m-8-2v4m-2-2h4" })
+                            ),
+                            e('span', null, "Reset & Restart Set 1 Recording")
+                        )
+                    )
+                )
             );
         };
 
@@ -467,110 +415,65 @@
             
             const axisLabels = [stepValue, stepValue * 2, stepValue * 3];
 
-            return (
-                <div className="flex flex-col items-center mb-4">
-                    <div className="text-center mb-4 w-full">
-                        <h3 className="text-sm font-bold tracking-wider text-gray-400 uppercase">{title}</h3>
-                        <div className="text-2xl font-extrabold" style={{ color: color }}>
-                            {currentTotal} Sets
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                            (Last Week: {lastWeekTotal} Sets)
-                        </div>
-                    </div>
+            return e('div', { className: "flex flex-col items-center mb-4" },
+                e('div', { className: "text-center mb-4 w-full" },
+                    e('h3', { className: "text-sm font-bold tracking-wider text-gray-400 uppercase" }, title),
+                    e('div', { className: "text-2xl font-extrabold", style: { color: color } }, `${currentTotal} Sets`),
+                    e('div', { className: "text-xs text-gray-500 mt-1" }, `(Last Week: ${lastWeekTotal} Sets)`)
+                ),
+                e('div', { className: "relative" },
+                    e('svg', { width: size, height: size, className: "overflow-visible" },
+                        axisLabels.map((scale, index) => {
+                            const r = radius * (index + 1) / 3;
+                            return e('g', { key: scale },
+                                e('circle', { cx: center, cy: center, r: r, fill: "none", stroke: "#374151", strokeDasharray: "4 4" }),
+                                e('text', { x: center + 5, y: center - r - 5, fill: "#9ca3af", fontSize: "9" }, axisLabels[index])
+                            );
+                        }),
 
-                    <div className="relative">
-                        <svg width={size} height={size} className="overflow-visible">
-                            {/* Grid Webs (with labels) */}
-                            {[0.33, 0.66, 1].map((scale, index) => (
-                                <g key={scale}>
-                                    <circle cx={center} cy={center} r={radius * scale} fill="none" stroke="#374151" strokeDasharray="4 4" />
-                                    {index < axisLabels.length && (
-                                        <text x={center + 5} y={center - (radius * scale) - 5} fill="#9ca3af" fontSize="9">
-                                            {axisLabels[index]}
-                                        </text>
-                                    )}
-                                </g>
-                            ))}
+                        muscles.map((_, i) => {
+                            const angle = i * angleStep - Math.PI / 2;
+                            const x = center + Math.cos(angle) * radius;
+                            const y = center + Math.sin(angle) * radius;
+                            return e('line', { key: i, x1: center, y1: center, x2: x, y2: y, stroke: "#374151" });
+                        }),
+                        
+                        e('polygon', { points: lastWeekPoints, fill: "#4b5563", fillOpacity: "0.4", stroke: "#6b7280", strokeWidth: "1" }),
+                        e('polygon', { points: currentPoints, fill: color, fillOpacity: "0.4", stroke: color, strokeWidth: "2" }),
 
-                            {/* Axis Lines */}
-                            {muscles.map((_, i) => {
-                                const angle = i * angleStep - Math.PI / 2;
-                                const x = center + Math.cos(angle) * radius;
-                                const y = center + Math.sin(angle) * radius;
-                                return <line key={i} x1={center} y1={center} x2={x} y2={y} stroke="#374151" />;
-                            })}
+                        muscles.map((m, i) => {
+                            const angle = i * angleStep - Math.PI / 2;
+                            const r_offset = radius + 17; 
+                            let x = center + Math.cos(angle) * r_offset;
+                            let y = center + Math.sin(angle) * r_offset;
+
+                            let anchor = 'middle';
+                            let dy = 0;
                             
-                            {/* Last Week Data (Grey background) */}
-                            <polygon points={lastWeekPoints} fill="#4b5563" fillOpacity="0.4" stroke="#6b7280" strokeWidth="1" />
-                            
-                            {/* Current Week Data (Primary color) */}
-                            <polygon points={currentPoints} fill={color} fillOpacity="0.4" stroke={color} strokeWidth="2" />
+                            if (angle > -1.3 && angle < 0.5) { anchor = 'start'; x += 5; } 
+                            else if (angle >= 0.5 && angle < Math.PI * 0.75) { anchor = 'start'; dy = 5; x += 3; } 
+                            else if (angle >= Math.PI * 0.75 || angle < -Math.PI * 0.75) { anchor = 'end'; dy = 5; x -= 3; } 
+                            else if (angle >= -Math.PI * 0.75 && angle <= -1.3) { anchor = 'end'; dy = -5; x -= 3; } 
+                            else { anchor = 'middle'; }
 
-                            {/* Labels */}
-                            {muscles.map((m, i) => {
-                                const angle = i * angleStep - Math.PI / 2;
-                                const r_offset = radius + 17; 
-                                let x = center + Math.cos(angle) * r_offset;
-                                let y = center + Math.sin(angle) * r_offset;
-
-                                let anchor = 'middle';
-                                let dy = 0;
-                                
-                                // --- ADJUSTMENT FOR LABEL POSITIONING ---
-                                // Top-Right & Middle Right (Approx -1.3 rad to 0.5 rad)
-                                if (angle > -1.3 && angle < 0.5) { 
-                                    anchor = 'start';
-                                    x += 5; 
-                                } 
-                                // Bottom Right (Approx 0.5 rad to 0.75*PI rad)
-                                else if (angle >= 0.5 && angle < Math.PI * 0.75) { 
-                                    anchor = 'start';
-                                    dy = 5;
-                                    x += 3; 
-                                } 
-                                // Bottom Left (Approx 0.75*PI rad to -0.75*PI rad)
-                                else if (angle >= Math.PI * 0.75 || angle < -Math.PI * 0.75) { 
-                                    anchor = 'end';
-                                    dy = 5;
-                                    x -= 3; 
-                                } 
-                                // Top Left (Approx -0.75*PI rad to -1.3 rad)
-                                else if (angle >= -Math.PI * 0.75 && angle <= -1.3) { 
-                                    anchor = 'end';
-                                    dy = -5;
-                                    x -= 3; 
-                                } 
-                                // Top Middle (Default/Catch-all for top)
-                                else {
-                                    anchor = 'middle';
-                                }
-
-                                const labelText = m; 
-
-                                return (
-                                    <text 
-                                        key={m} 
-                                        x={x} 
-                                        y={y} 
-                                        dy={dy} 
-                                        textAnchor={anchor} 
-                                        dominantBaseline="middle" 
-                                        fill="#9ca3af" 
-                                        fontSize="9" 
-                                        fontWeight="bold"
-                                    >
-                                        {labelText}
-                                    </text>
-                                );
-                            })}
-                        </svg>
-                        <div className="flex justify-center space-x-4 mt-4 text-xs">
-                            <span className="flex items-center"><div className="w-3 h-3" style={{backgroundColor: color, opacity: 0.6}} ></div> Current</span>
-                            <span className="flex items-center"><div className="w-3 h-3 bg-gray-500 rounded-full mr-1"></div> Last Week</span>
-                        </div>
-                    </div>
-                </div>
+                            return e('text', { 
+                                key: m, 
+                                x: x, 
+                                y: y, 
+                                dy: dy, 
+                                textAnchor: anchor, 
+                                dominantBaseline: "middle", 
+                                fill: "#9ca3af", 
+                                fontSize: "9", 
+                                fontWeight: "bold"
+                            }, m);
+                        })
+                    ),
+                    e('div', { className: "flex justify-center space-x-4 mt-4 text-xs" },
+                        e('span', { className: "flex items-center" }, e('div', { className: "w-3 h-3 mr-1", style: {backgroundColor: color, opacity: 0.6} }), "Current"),
+                        e('span', { className: "flex items-center" }, e('div', { className: "w-3 h-3 bg-gray-500 rounded-full mr-1" }), "Last Week")
+                    )
+                )
             );
         };
 
@@ -578,11 +481,8 @@
         const Header = ({ date, view, changeDay, setView }) => {
             const isStatsView = view === 'stats';
             const isLogView = view === 'day' || view === 'calendar';
-            const isTimerView = view === 'timer';
-            const isSettingsView = view === 'settings';
             const navDelta = isStatsView ? 7 : 1; 
 
-            // Calculate the current week start and end for the stats view label
             const currentMonday = getMonday(date);
             const sunday = new Date(currentMonday);
             sunday.setDate(currentMonday.getDate() + 6);
@@ -593,170 +493,120 @@
 
             if (isLogView) {
                 showArrows = true;
-                centerContent = (
-                    <div 
-                        onClick={() => setView(view === 'calendar' ? 'day' : 'calendar')} 
-                        className="flex flex-col items-center cursor-pointer transition w-auto active:scale-95"
-                    >
-                        <span className="text-lg font-bold text-white tracking-wide">
-                            {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                        <span className={`text-xs ${view === 'calendar' ? 'text-indigo-400' : 'text-gray-500'}`}>
-                            {`${date.getFullYear()} ${view === 'calendar' ? '▲' : '▼'}`}
-                        </span>
-                    </div>
+                centerContent = e('div', { 
+                    onClick: () => setView(view === 'calendar' ? 'day' : 'calendar'), 
+                    className: "flex flex-col items-center cursor-pointer transition w-auto active:scale-95"
+                },
+                    e('span', { className: "text-lg font-bold text-white tracking-wide" }, date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                    e('span', { className: `text-xs ${view === 'calendar' ? 'text-indigo-400' : 'text-gray-500'}` }, `${date.getFullYear()} ${view === 'calendar' ? '▲' : '▼'}`)
                 );
             } else if (isStatsView) {
                 showArrows = true;
-                centerContent = (
-                    <div className="flex flex-col items-center">
-                        <span className="text-lg font-bold text-white tracking-wide">
-                            Analysis
-                        </span>
-                        <span className="text-xs font-semibold text-gray-400 mt-0.5">
-                            {weekLabel}
-                        </span>
-                    </div>
+                centerContent = e('div', { className: "flex flex-col items-center" },
+                    e('span', { className: "text-lg font-bold text-white tracking-wide" }, "Analysis"),
+                    e('span', { className: "text-xs font-semibold text-gray-400 mt-0.5" }, weekLabel)
                 );
-            } else if (isTimerView) {
+            } else if (view === 'timer') {
                  showArrows = false;
-                 centerContent = (
-                    <span className="text-lg font-bold text-white tracking-wide">
-                        Workout Timer
-                    </span>
-                );
-            } else if (isSettingsView) {
+                 centerContent = e('span', { className: "text-lg font-bold text-white tracking-wide" }, "Workout Timer");
+            } else if (view === 'settings') {
                 showArrows = false;
-                centerContent = (
-                    <span className="text-lg font-bold text-white tracking-wide">
-                        Settings
-                    </span>
-                );
+                centerContent = e('span', { className: "text-lg font-bold text-white tracking-wide" }, "Settings");
             }
 
-            return (
-                <div className="sticky top-0 z-50 bg-gray-900 border-b border-gray-800 p-4 shadow-xl">
-                    <div className="flex justify-between items-center max-w-md mx-auto">
-                        
-                        <button onClick={() => changeDay(-navDelta)} className={`p-2 text-gray-400 hover:text-white active:scale-90 transition ${showArrows ? '' : 'invisible'}`}>
-                            <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 19l-7-7 7-7"/></svg>
-                        </button>
-                        
-                        <div className='flex-1 flex justify-center'>
-                            {centerContent}
-                        </div>
-                        
-                        <button onClick={() => changeDay(navDelta)} className={`p-2 text-gray-400 hover:text-white active:scale-90 transition ${showArrows ? '' : 'invisible'}`}>
-                            <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5l7 7-7 7"/></svg>
-                        </button>
-                    </div>
-                </div>
+            return e('div', { className: "sticky top-0 z-50 bg-gray-900 border-b border-gray-800 p-4 shadow-xl" },
+                e('div', { className: "flex justify-between items-center max-w-md mx-auto" },
+                    e('button', { onClick: () => changeDay(-navDelta), className: `p-2 text-gray-400 hover:text-white active:scale-90 transition ${showArrows ? '' : 'invisible'}` },
+                        e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M15 19l-7-7 7-7" }))
+                    ),
+                    e('div', { className: 'flex-1 flex justify-center' }, centerContent),
+                    e('button', { onClick: () => changeDay(navDelta), className: `p-2 text-gray-400 hover:text-white active:scale-90 transition ${showArrows ? '' : 'invisible'}` },
+                        e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M9 5l7 7-7 7" }))
+                    )
+                )
             );
         }
 
         // 3. DayLogger Component 
-        const DayLogger = ({ currentLog, updateSet, openGroup, setOpenGroup }) => (
-            <div className="p-4 pb-24 space-y-4">
-                {Object.keys(GROUPS).map(groupName => {
-                    const isOpen = openGroup === groupName;
-                    const groupSetCount = GROUPS[groupName].reduce((sum, m) => sum + (currentLog[m] || 0), 0);
-                    
-                    return (
-                        <div key={groupName} className="bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700">
-                            {/* Accordion Header */}
-                            <div 
-                                onClick={() => setOpenGroup(isOpen ? null : groupName)}
-                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${isOpen ? 'bg-indigo-900/30' : 'hover:bg-gray-750'}`}
-                            >
-                                <div className="flex items-center space-x-3">
-                                    <div className={`w-2 h-8 rounded-full ${groupSetCount > 0 ? 'bg-green-500' : 'bg-gray-600'}`}></div>
-                                    <h3 className="font-bold text-lg">{groupName}</h3>
-                                </div>
-                                <div className="flex items-center space-x-3">
-                                    {groupSetCount > 0 && <span className="text-xs bg-black/30 px-2 py-1 rounded text-green-400">{groupSetCount} sets</span>}
-                                    <span className="text-gray-400 text-xl">{isOpen ? '−' : '+'}</span>
-                                </div>
-                            </div>
+        const DayLogger = ({ currentLog, updateSet, openGroup, setOpenGroup }) => e('div', { className: "p-4 pb-24 space-y-4" },
+            Object.keys(GROUPS).map(groupName => {
+                const isOpen = openGroup === groupName;
+                const groupSetCount = GROUPS[groupName].reduce((sum, m) => sum + (currentLog[m] || 0), 0);
+                
+                return e('div', { key: groupName, className: "bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700" },
+                    e('div', { 
+                        onClick: () => setOpenGroup(isOpen ? null : groupName),
+                        className: `p-4 flex justify-between items-center cursor-pointer transition-colors ${isOpen ? 'bg-indigo-900/30' : 'hover:bg-gray-750'}`
+                    },
+                        e('div', { className: "flex items-center space-x-3" },
+                            e('div', { className: `w-2 h-8 rounded-full ${groupSetCount > 0 ? 'bg-green-500' : 'bg-gray-600'}` }),
+                            e('h3', { className: "font-bold text-lg" }, groupName)
+                        ),
+                        e('div', { className: "flex items-center space-x-3" },
+                            groupSetCount > 0 && e('span', { className: "text-xs bg-black/30 px-2 py-1 rounded text-green-400" }, `${groupSetCount} sets`),
+                            e('span', { className: "text-gray-400 text-xl" }, isOpen ? '−' : '+')
+                        )
+                    ),
+                    isOpen && e('div', { className: "bg-gray-900/50 p-2 divide-y divide-gray-800" },
+                        GROUPS[groupName].map(muscle => e('div', { key: muscle, className: "flex justify-between items-center p-3 animate-fade-in" },
+                            e('span', { className: "text-gray-300 font-medium" }, muscle),
+                            e('div', { className: "flex items-center space-x-3 bg-gray-800 rounded-lg p-1" },
+                                e('button', { 
+                                    onClick: () => updateSet(muscle, -1),
+                                    className: "w-10 h-10 flex items-center justify-center bg-gray-700 rounded text-gray-300 active:bg-red-900 active:text-white transition"
+                                }, e('svg', { width: "16", height: "2", fill: "currentColor" }, e('rect', { width: "16", height: "2", rx: "1" }))),
+                                
+                                e('span', { className: "w-8 text-center text-xl font-bold text-white" }, currentLog[muscle] || 0),
 
-                            {/* Accordion Body */}
-                            {isOpen && (
-                                <div className="bg-gray-900/50 p-2 divide-y divide-gray-800">
-                                    {GROUPS[groupName].map(muscle => (
-                                        <div key={muscle} className="flex justify-between items-center p-3 animate-fade-in">
-                                            <span className="text-gray-300 font-medium">{muscle}</span>
-                                            <div className="flex items-center space-x-3 bg-gray-800 rounded-lg p-1">
-                                                <button 
-                                                    onClick={() => updateSet(muscle, -1)}
-                                                    className="w-10 h-10 flex items-center justify-center bg-gray-700 rounded text-gray-300 active:bg-red-900 active:text-white transition"
-                                                >
-                                                    <svg width="16" height="2" fill="currentColor"><rect width="16" height="2" rx="1"/></svg>
-                                                </button>
-                                                
-                                                <span className="w-8 text-center text-xl font-bold text-white">
-                                                    {currentLog[muscle] || 0}
-                                                </span>
-
-                                                <button 
-                                                    onClick={() => updateSet(muscle, 1)}
-                                                    className="w-10 h-10 flex items-center justify-center bg-indigo-600 rounded text-white active:bg-indigo-400 transition shadow-lg shadow-indigo-900/50"
-                                                >
-                                                    <svg width="16" height="16" fill="currentColor"><path d="M7 0h2v16H7z"/><path d="M0 7h16v2H0z"/></svg>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
+                                e('button', { 
+                                    onClick: () => updateSet(muscle, 1),
+                                    className: "w-10 h-10 flex items-center justify-center bg-indigo-600 rounded text-white active:bg-indigo-400 transition shadow-lg shadow-indigo-900/50"
+                                }, e('svg', { width: "16", height: "16", fill: "currentColor" }, e('path', { d: "M7 0h2v16H7z" }), e('path', { d: "M0 7h16v2H0z" })))
+                            )
+                        ))
+                    )
+                );
+            })
         );
 
         // 4. Settings View Component 
         const SettingsView = ({ handleExport, handleImport }) => {
             const fileInputRef = useRef(null);
 
-            return (
-                <div className="p-4 pb-24 space-y-6 animate-fade-in">
-                    <div className="bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700 space-y-4">
-                        <h3 className="text-lg font-bold text-indigo-400 border-b border-gray-700 pb-2">Data Management (Local Backup)</h3>
-                        <p className="text-sm text-gray-400">
-                            Since your data is saved only in your browser, use the Export button to create a safe backup file for transfer or restoration.
-                        </p>
-                        <div className="flex flex-col space-y-3 pt-2">
-                            
-                            {/* Export Button */}
-                            <button 
-                                onClick={handleExport}
-                                className="p-3 bg-gray-700 text-white rounded-xl shadow-lg hover:bg-gray-600 transition active:scale-[.98]"
-                            >
-                                <div className="flex items-center justify-center space-x-2">
-                                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 14v5a2 2 0 002 2h12a2 2 0 002-2v-5M12 3v12m-4-8l4 4 4-4"/></svg>
-                                    <span>Export Backup (.json)</span>
-                                </div>
-                            </button>
+            return e('div', { className: "p-4 pb-24 space-y-6 animate-fade-in" },
+                e('div', { className: "bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700 space-y-4" },
+                    e('h3', { className: "text-lg font-bold text-indigo-400 border-b border-gray-700 pb-2" }, "Data Management (Local Backup)"),
+                    e('p', { className: "text-sm text-gray-400" }, "Since your data is saved only in your browser, use the Export button to create a safe backup file for transfer or restoration."),
+                    e('div', { className: "flex flex-col space-y-3 pt-2" },
+                        
+                        e('button', { 
+                            onClick: handleExport,
+                            className: "p-3 bg-gray-700 text-white rounded-xl shadow-lg hover:bg-gray-600 transition active:scale-[.98]"
+                        },
+                            e('div', { className: "flex items-center justify-center space-x-2" },
+                                e('svg', { width: "20", height: "20", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M4 14v5a2 2 0 002 2h12a2 2 0 002-2v-5M12 3v12m-4-8l4 4 4-4" })),
+                                e('span', null, "Export Backup (.json)")
+                            )
+                        ),
 
-                            {/* Import Button */}
-                            <input 
-                                type="file" 
-                                accept=".json" 
-                                ref={fileInputRef} 
-                                onChange={handleImport} 
-                                style={{ display: 'none' }} 
-                            />
-                            <button 
-                                onClick={() => fileInputRef.current.click()}
-                                className="p-3 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-500 transition active:scale-[.98]"
-                            >
-                                <div className="flex items-center justify-center space-x-2">
-                                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 14v5a2 2 0 002 2h12a2 2 0 002-2v-5M12 3v12m4-4l-4 4-4-4"/></svg>
-                                    <span>Import Data</span>
-                                </div>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                        e('input', { 
+                            type: "file", 
+                            accept: ".json", 
+                            ref: fileInputRef, 
+                            onChange: handleImport, 
+                            style: { display: 'none' } 
+                        }),
+                        e('button', { 
+                            onClick: () => fileInputRef.current.click(),
+                            className: "p-3 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-500 transition active:scale-[.98]"
+                        },
+                            e('div', { className: "flex items-center justify-center space-x-2" },
+                                e('svg', { width: "20", height: "20", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M4 14v5a2 2 0 002 2h12a2 2 0 002-2v-5M12 3v12m4-4l-4 4-4-4" })),
+                                e('span', null, "Import Data")
+                            )
+                        )
+                    )
+                )
             );
         };
 
@@ -774,56 +624,41 @@
             for(let i=0; i<(firstDay === 0 ? 6 : firstDay - 1); i++) days.push(null); 
             for(let i=1; i<=daysInMonth; i++) days.push(i);
 
-            return (
-                <div className="p-6 animate-fade-in">
-                    <h2 className="text-xl font-bold text-indigo-400 mb-4">Activity Log</h2>
-                    <div className="grid grid-cols-7 gap-2 mb-2 text-center text-xs text-gray-500">
-                        <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
-                    </div>
-                    <div className="grid grid-cols-7 gap-2">
-                        {days.map((d, i) => {
-                            if(!d) return <div key={i}></div>;
-                            const checkDate = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                            const log = logs[checkDate];
-                            const total = log ? log.totalSets || 0 : 0;
-                            const isSelected = checkDate === dateStr;
-                            const isToday = checkDate === today;
-                            
-                            return (
-                                <div 
-                                    key={i}
-                                    onClick={() => {
-                                        setDate(new Date(year, month, d));
-                                        setView('day');
-                                    }}
-                                    className={`
-                                        h-10 rounded-md flex items-center justify-center text-xs font-bold cursor-pointer transition
-                                        ${getIntensityColor(total)}
-                                        ${isSelected ? 'ring-2 ring-indigo-400 scale-110' : ''}
-                                        ${isToday && !isSelected ? 'border border-white/50' : 'text-transparent hover:text-white/50'}
-                                    `}
-                                >
-                                    {d}
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="mt-6 flex items-center justify-center space-x-2 text-xs text-gray-400">
-                        <span>Less</span>
-                        <div className="w-3 h-3 bg-gray-800 rounded"></div>
-                        <div className="w-3 h-3 bg-green-900 rounded"></div>
-                        <div className="w-3 h-3 bg-green-700 rounded"></div>
-                        <div className="w-3 h-3 bg-green-500 rounded"></div>
-                        <div className="w-3 h-3 bg-green-400 rounded"></div>
-                        <span>More</span>
-                    </div>
-                </div>
+            return e('div', { className: "p-6 animate-fade-in" },
+                e('h2', { className: "text-xl font-bold text-indigo-400 mb-4" }, "Activity Log"),
+                e('div', { className: "grid grid-cols-7 gap-2 mb-2 text-center text-xs text-gray-500" },
+                    e('div', null, "M"), e('div', null, "T"), e('div', null, "W"), e('div', null, "T"), e('div', null, "F"), e('div', null, "S"), e('div', null, "S")
+                ),
+                e('div', { className: "grid grid-cols-7 gap-2" },
+                    days.map((d, i) => {
+                        if(!d) return e('div', { key: i });
+                        const checkDate = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                        const log = logs[checkDate];
+                        const total = log ? log.totalSets || 0 : 0;
+                        const isSelected = checkDate === dateStr;
+                        const isToday = checkDate === today;
+                        
+                        return e('div', { 
+                            key: i,
+                            onClick: () => { setDate(new Date(year, month, d)); setView('day'); },
+                            className: `h-10 rounded-md flex items-center justify-center text-xs font-bold cursor-pointer transition ${getIntensityColor(total)} ${isSelected ? 'ring-2 ring-indigo-400 scale-110' : ''} ${isToday && !isSelected ? 'border border-white/50' : 'text-transparent hover:text-white/50'}`
+                        }, d);
+                    })
+                ),
+                e('div', { className: "mt-6 flex items-center justify-center space-x-2 text-xs text-gray-400" },
+                    e('span', null, "Less"),
+                    e('div', { className: "w-3 h-3 bg-gray-800 rounded" }),
+                    e('div', { className: "w-3 h-3 bg-green-900 rounded" }),
+                    e('div', { className: "w-3 h-3 bg-green-700 rounded" }),
+                    e('div', { className: "w-3 h-3 bg-green-500 rounded" }),
+                    e('div', { className: "w-3 h-3 bg-green-400 rounded" }),
+                    e('span', null, "More")
+                )
             );
         };
 
         // 6. Stats View Component 
         const StatsView = ({ date, logs }) => {
-            // 1. Get Date Ranges (Monday start)
             const currentMonday = getMonday(date);
             const currentWeekDates = getDateRange(currentMonday, 7);
             
@@ -831,7 +666,6 @@
             lastMonday.setDate(currentMonday.getDate() - 7);
             const lastWeekDates = getDateRange(lastMonday, 7);
 
-            // 2. Aggregate Volume (Returns detailed 17 muscle volumes)
             const aggregateVolume = (dates) => {
                 const accDetail = {};
                 dates.forEach(d => {
@@ -846,7 +680,6 @@
             const currentVolumeDetail = useMemo(() => aggregateVolume(currentWeekDates), [logs, date]);
             const lastVolumeDetail = useMemo(() => aggregateVolume(lastWeekDates), [logs, date]);
             
-            // Function to filter aggregated data and calculate total for specific muscle groups
             const getVolumeData = (volume, muscleList) => {
                 const filtered = {};
                 let total = 0;
@@ -859,98 +692,83 @@
                 return { data: filtered, total };
             };
             
-            // Calculate Upper Body Data and Totals
             const currentUpper = getVolumeData(currentVolumeDetail, UPPER_MUSCLES);
             const lastUpper = getVolumeData(lastVolumeDetail, UPPER_MUSCLES);
 
-            // Calculate Lower Body Data and Totals
             const currentLower = getVolumeData(currentVolumeDetail, LOWER_MUSCLES);
             const lastLower = getVolumeData(lastVolumeDetail, LOWER_MUSCLES);
             
             const totalCurrentSets = currentUpper.total + currentLower.total;
             const totalLastSets = lastUpper.total + lastLower.total;
 
-            // Check if any volume exists this week or last week
             const hasData = totalCurrentSets > 0 || totalLastSets > 0;
 
-            return (
-                <div className="p-4 pb-24">
-                    
-                    {!hasData ? (
-                        <div className="text-center py-20 text-gray-500">Log sets this week (or last week) to see your volume stats.</div>
-                    ) : (
-                        <div className="space-y-8">
-                            
-                            {/* Upper Body Radar Chart (11 axes) */}
-                            <div className="bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700">
-                                <RadarChart 
-                                    title="Upper Body Volume (Push/Pull)" 
-                                    currentData={currentUpper.data}
-                                    lastWeekData={lastUpper.data}
-                                    muscles={UPPER_MUSCLES} 
-                                    color="#6366f1" 
-                                    currentTotal={currentUpper.total}
-                                    lastWeekTotal={lastUpper.total}
-                                />
-                            </div>
-
-                            {/* Lower Body Radar Chart (6 axes) */}
-                            <div className="bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700">
-                                <RadarChart 
-                                    title="Lower Body & Core Volume" 
-                                    currentData={currentLower.data}
-                                    lastWeekData={lastLower.data}
-                                    muscles={LOWER_MUSCLES} 
-                                    color="#10b981" // Different color for distinction
-                                    currentTotal={currentLower.total}
-                                    lastWeekTotal={lastLower.total}
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
+            return e('div', { className: "p-4 pb-24" },
+                !hasData ? (
+                    e('div', { className: "text-center py-20 text-gray-500" }, "Log sets this week (or last week) to see your volume stats.")
+                ) : (
+                    e('div', { className: "space-y-8" },
+                        e('div', { className: "bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700" },
+                            e(RadarChart, { 
+                                title: "Upper Body Volume (Push/Pull)", 
+                                currentData: currentUpper.data,
+                                lastWeekData: lastUpper.data,
+                                muscles: UPPER_MUSCLES, 
+                                color: "#6366f1", 
+                                currentTotal: currentUpper.total,
+                                lastWeekTotal: lastUpper.total
+                            })
+                        ),
+                        e('div', { className: "bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700" },
+                            e(RadarChart, { 
+                                title: "Lower Body & Core Volume", 
+                                currentData: currentLower.data,
+                                lastWeekData: lastLower.data,
+                                muscles: LOWER_MUSCLES, 
+                                color: "#10b981", 
+                                currentTotal: currentLower.total,
+                                lastWeekTotal: lastLower.total
+                            })
+                        )
+                    )
+                )
             );
         };
 
         // 7. Footer Component 
-        const Footer = ({ view, setView, unsaved }) => (
-            <div className="fixed bottom-0 w-full bg-gray-900 border-t border-gray-800 pb-safe">
-                <div className="flex justify-around items-center h-16 max-w-md mx-auto relative">
-                    {unsaved && (
-                        <div className="absolute -top-8 left-0 right-0 text-center">
-                            <span className="bg-indigo-600 text-white text-xs px-3 py-1 rounded-full shadow-lg">Saving locally...</span>
-                        </div>
-                    )}
+        const Footer = ({ view, setView, unsaved }) => e('div', { className: "fixed bottom-0 w-full bg-gray-900 border-t border-gray-800 pb-safe" },
+            e('div', { className: "flex justify-around items-center h-16 max-w-md mx-auto relative" },
+                unsaved && e('div', { className: "absolute -top-8 left-0 right-0 text-center" },
+                    e('span', { className: "bg-indigo-600 text-white text-xs px-3 py-1 rounded-full shadow-lg" }, "Saving locally...")
+                ),
 
-                    <button onClick={() => setView('day')} className={`flex flex-col items-center space-y-1 w-full transition ${view === 'day' ? 'text-indigo-400' : 'text-gray-500'}`}>
-                        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                        <span className="text-[10px] font-bold uppercase">Log</span>
-                    </button>
-                    
-                    <div className="w-px h-8 bg-gray-800"></div>
-                    
-                    {/* TIMER BUTTON */}
-                    <button onClick={() => setView('timer')} className={`flex flex-col items-center space-y-1 w-full transition ${view === 'timer' ? 'text-indigo-400' : 'text-gray-500'}`}>
-                        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span className="text-[10px] font-bold uppercase">Timer</span>
-                    </button>
+                e('button', { onClick: () => setView('day'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'day' ? 'text-indigo-400' : 'text-gray-500'}` },
+                    e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" })),
+                    e('span', { className: "text-[10px] font-bold uppercase" }, "Log")
+                ),
+                
+                e('div', { className: "w-px h-8 bg-gray-800" }),
+                
+                e('button', { onClick: () => setView('timer'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'timer' ? 'text-indigo-400' : 'text-gray-500'}` },
+                    e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" })),
+                    e('span', { className: "text-[10px] font-bold uppercase" }, "Timer")
+                ),
 
-                    <div className="w-px h-8 bg-gray-800"></div>
+                e('div', { className: "w-px h-8 bg-gray-800" }),
 
-                    <button onClick={() => setView('stats')} className={`flex flex-col items-center space-y-1 w-full transition ${view === 'stats' ? 'text-indigo-400' : 'text-gray-500'}`}>
-                        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        <span className="text-[10px] font-bold uppercase">Analysis</span>
-                    </button>
+                e('button', { onClick: () => setView('stats'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'stats' ? 'text-indigo-400' : 'text-gray-500'}` },
+                    e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" })),
+                    e('span', { className: "text-[10px] font-bold uppercase" }, "Analysis")
+                ),
 
-                    <div className="w-px h-8 bg-gray-800"></div>
+                e('div', { className: "w-px h-8 bg-gray-800" }),
 
-                    <button onClick={() => setView('settings')} className={`flex flex-col items-center space-y-1 w-full transition ${view === 'settings' ? 'text-indigo-400' : 'text-gray-500'}`}>
-                        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        <span className="text-[10px] font-bold uppercase">Settings</span>
-                    </button>
-
-                </div>
-            </div>
+                // FIX APPLIED HERE: Removed extra closing backtick from className template literal
+                e('button', { onClick: () => setView('settings'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'settings' ? 'text-indigo-400' : 'text-gray-500'}` },
+                    e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z" }), e('path', { d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" })),
+                    e('span', { className: "text-[10px] font-bold uppercase" }, "Settings")
+                )
+            )
         );
 
         // 8. MAIN APP Component (The root)
@@ -962,22 +780,18 @@
             const [loading, setLoading] = useState(true);
             const [unsaved, setUnsaved] = useState(false);
             
-            // Helpers
             const dateStr = formatDate(date);
             const currentLog = logs[dateStr] || {};
 
-            // 1. Initial Load from localStorage
             useEffect(() => {
                 setLogs(loadLogs());
                 setLoading(false);
             }, []);
 
-            // 2. Data Update Logic (Tappers)
             const updateSet = (muscle, delta) => {
                 const oldVal = currentLog[muscle] || 0;
                 const newVal = Math.max(0, oldVal + delta);
                 
-                // Optimistic Update
                 setLogs(prev => ({
                     ...prev,
                     [dateStr]: { ...prev[dateStr], [muscle]: newVal }
@@ -985,7 +799,6 @@
                 setUnsaved(true);
             };
 
-            // 3. Debounced Save to localStorage
             useEffect(() => {
                 if (!unsaved) return;
                 
@@ -1007,7 +820,6 @@
                 return () => clearTimeout(timer);
             }, [logs, unsaved, dateStr]);
 
-            // 4. Export Function
             const handleExport = () => {
                 const dataStr = JSON.stringify(logs, null, 2);
                 const blob = new Blob([dataStr], { type: 'application/json' });
@@ -1022,7 +834,6 @@
                 URL.revokeObjectURL(url);
             };
 
-            // 5. Import Function
             const handleImport = (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
@@ -1032,24 +843,20 @@
                     try {
                         const importedLogs = JSON.parse(e.target.result);
                         
-                        // Basic validation: ensure it's an object/map
                         if (typeof importedLogs !== 'object' || importedLogs === null) {
                             console.error("Import failed: File content is not a valid object.");
                             return; 
                         }
                         
-                        // Replace current logs with imported data
                         setLogs(importedLogs);
-                        saveLogs(importedLogs); // Save to localStorage immediately
+                        saveLogs(importedLogs);
                         console.log("Data imported successfully!");
 
                     } catch (error) {
                         console.error("Error parsing imported file:", error);
-                        // In a production app, you would show a user-friendly error modal here
                     }
                 };
                 reader.readAsText(file);
-                // Clear the file input value so the same file can be selected again
                 event.target.value = null;
             };
 
@@ -1059,51 +866,43 @@
                 setDate(newDate);
             };
 
-            if (loading) return <div className="flex items-center justify-center h-screen text-indigo-500 animate-pulse">Loading Local Data...</div>;
+            if (loading) return e('div', { className: "flex items-center justify-center h-screen text-indigo-500 animate-pulse" }, "Loading Local Data...");
 
-            return (
-                <div className="max-w-md mx-auto min-h-screen bg-gray-900 relative">
-                    <Header 
-                        date={date}
-                        view={view}
-                        changeDay={changeDay}
-                        setView={setView}
-                    />
-                    
-                    <div className="animate-fade-in">
-                        {view === 'day' && (
-                            <DayLogger 
-                                currentLog={currentLog} 
-                                updateSet={updateSet} 
-                                openGroup={openGroup} 
-                                setOpenGroup={setOpenGroup} 
-                            />
-                        )}
-                        {view === 'calendar' && (
-                            <CalendarView 
-                                date={date} 
-                                logs={logs} 
-                                setDate={setDate} 
-                                setView={setView}
-                            />
-                        )}
-                        {view === 'stats' && <StatsView date={date} logs={logs} />}
-                        {view === 'timer' && <TimerView />}
-                        {view === 'settings' && (
-                            <SettingsView 
-                                handleExport={handleExport}
-                                handleImport={handleImport}
-                            />
-                        )}
-                    </div>
+            return e('div', { className: "max-w-md mx-auto min-h-screen bg-gray-900 relative" },
+                e(Header, { 
+                    date: date,
+                    view: view,
+                    changeDay: changeDay,
+                    setView: setView
+                }),
+                
+                e('div', { className: "animate-fade-in" },
+                    view === 'day' && e(DayLogger, { 
+                        currentLog: currentLog, 
+                        updateSet: updateSet, 
+                        openGroup: openGroup, 
+                        setOpenGroup: setOpenGroup 
+                    }),
+                    view === 'calendar' && e(CalendarView, { 
+                        date: date, 
+                        logs: logs, 
+                        setDate: setDate, 
+                        setView: setView
+                    }),
+                    view === 'stats' && e(StatsView, { date: date, logs: logs }),
+                    view === 'timer' && e(TimerView, null),
+                    view === 'settings' && e(SettingsView, { 
+                        handleExport: handleExport,
+                        handleImport: handleImport
+                    })
+                ),
 
-                    <Footer view={view} setView={setView} unsaved={unsaved} />
-                </div>
+                e(Footer, { view: view, setView: setView, unsaved: unsaved })
             );
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        root.render(e(App, null));
     </script>
 </body>
 </html>
