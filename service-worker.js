@@ -15,10 +15,15 @@ const urlsToCache = [
 ];
 
 // External CDN resources (cached separately with better error handling)
+// Note: Tailwind CDN is dynamic and cannot be cached - it must always fetch fresh
 const externalResources = [
-    'https://cdn.tailwindcss.com',
     'https://unpkg.com/react@18/umd/react.production.min.js',
     'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js'
+];
+
+// Resources that should bypass service worker (dynamic CDNs)
+const bypassResources = [
+    'https://cdn.tailwindcss.com'
 ];
 
 // Install event: Caching essential files
@@ -80,6 +85,12 @@ self.addEventListener('fetch', event => {
     // Only handle GET requests
     if (event.request.method !== 'GET') {
         return;
+    }
+
+    // Skip resources that should bypass service worker (like dynamic Tailwind CDN)
+    const shouldBypass = bypassResources.some(bypassUrl => event.request.url.startsWith(bypassUrl));
+    if (shouldBypass) {
+        return; // Let the browser handle it normally
     }
 
     // Skip cross-origin requests that we can't cache (like API calls)
