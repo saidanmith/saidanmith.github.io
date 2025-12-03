@@ -61,9 +61,19 @@
             from { opacity: 1; }
             to { opacity: 0.5; }
         }
+
+        /* Theme-aware colors */
+        body.theme-indigo {
+            background-color: #111827;
+            color: #f3f4f6;
+        }
+        body.theme-pink {
+            background-color: #ffc0cb;
+            color: #ffffff;
+        }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen font-sans selection:bg-indigo-500 selection:text-white">
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans selection:bg-indigo-500 selection:text-white theme-indigo">
 
     <div id="root"></div>
 
@@ -80,9 +90,63 @@
         };
         const ALL_MUSCLES = Object.values(GROUPS).flat();
         const STORAGE_KEY = 'localGymTrackerLogs';
+        const BODYWEIGHT_KEY = 'localGymTrackerBodyweight';
+        const PRSTORAGE_KEY = 'localGymTrackerPRs';
         
         const UPPER_MUSCLES = GROUPS.Push.concat(GROUPS.Pull); 
-        const LOWER_MUSCLES = GROUPS["Legs & Core"]; 
+        const LOWER_MUSCLES = GROUPS["Legs & Core"];
+
+        // Theme colors
+        const THEMES = {
+            indigo: {
+                name: 'indigo',
+                bg: 'bg-gray-900',
+                bgCard: 'bg-gray-800',
+                bgCardDark: 'bg-gray-900',
+                text: 'text-gray-100',
+                textSecondary: 'text-gray-400',
+                textTertiary: 'text-gray-500',
+                textAccent: 'text-indigo-400',
+                accent: 'indigo-600',
+                accentHover: 'indigo-500',
+                accentLight: 'indigo-400',
+                accentDark: 'indigo-300',
+                border: 'border-gray-700',
+                borderLight: 'divide-gray-800',
+                secondary: 'indigo-900/50'
+            },
+            pink: {
+                name: 'pink',
+                bg: 'bg-pink-300',
+                bgCard: 'bg-pink-200',
+                bgCardDark: 'bg-pink-100',
+                text: 'text-white',
+                textSecondary: 'text-pink-900',
+                textTertiary: 'text-pink-800',
+                textAccent: 'text-yellow-600',
+                accent: 'bg-yellow-400',
+                accentHover: 'bg-yellow-300',
+                accentLight: 'text-yellow-600',
+                accentDark: 'text-yellow-700',
+                border: 'border-pink-400',
+                borderLight: 'divide-pink-300',
+                secondary: 'pink-200'
+            }
+        };
+        const THEME_STORAGE_KEY = 'localGymTrackerTheme';
+
+        const getThemeColor = (theme, colorKey) => THEMES[theme]?.[colorKey] || THEMES.indigo[colorKey];
+
+        // Default PR structure
+        const DEFAULT_PRS = {
+            "Squat": { weight: null, reps: null, date: null },
+            "Bench Press": { weight: null, reps: null, date: null },
+            "Deadlift": { weight: null, reps: null, date: null },
+            "1RM_Squat": { weight: null, date: null },
+            "1RM_Bench": { weight: null, date: null },
+            "1RM_Deadlift": { weight: null, date: null },
+            "Custom": []
+        }; 
 
         // --- GENERAL HELPERS ---
         const formatDate = (d) => {
@@ -140,6 +204,46 @@
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
             } catch (error) {
                 console.error("Error saving logs to localStorage:", error);
+            }
+        };
+
+        // --- BODYWEIGHT STORAGE HELPERS ---
+        const loadBodyweight = () => {
+            try {
+                const json = localStorage.getItem(BODYWEIGHT_KEY);
+                return json ? JSON.parse(json) : {};
+            } catch (error) {
+                console.error("Error loading bodyweight from localStorage:", error);
+                return {};
+            }
+        };
+
+        const saveBodyweight = (data) => {
+            try {
+                localStorage.setItem(BODYWEIGHT_KEY, JSON.stringify(data));
+            } catch (error) {
+                console.error("Error saving bodyweight to localStorage:", error);
+            }
+        };
+
+        // --- PR STORAGE HELPERS ---
+        const loadPRs = () => {
+            try {
+                const json = localStorage.getItem(PRSTORAGE_KEY);
+                const stored = json ? JSON.parse(json) : {};
+                // Merge with defaults to ensure all keys exist
+                return { ...DEFAULT_PRS, ...stored };
+            } catch (error) {
+                console.error("Error loading PRs from localStorage:", error);
+                return { ...DEFAULT_PRS };
+            }
+        };
+
+        const savePRs = (prs) => {
+            try {
+                localStorage.setItem(PRSTORAGE_KEY, JSON.stringify(prs));
+            } catch (error) {
+                console.error("Error saving PRs to localStorage:", error);
             }
         };
 
@@ -270,11 +374,11 @@
 
                 buttonText = 'Start Set 1 (Recording)';
                 buttonAction = handleStartSet;
-                buttonColor = 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-800/50';
+                buttonColor = 'bg-pink-500 hover:bg-pink-600 shadow-pink-700/50';
 
             } else if (mode === 'set') {
                 displayTime = formatTime(setTime);
-                primaryColor = 'text-indigo-400';
+                primaryColor = 'text-pink-300';
 
                 if (isRecordingSetOne) {
                     displayLabel = 'Set 1 (Recording)';
@@ -283,7 +387,7 @@
 
                     buttonText = 'End Set 1 & Start Rest';
                     buttonAction = handleManualSetEnd;
-                    buttonColor = 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-800/50';
+                    buttonColor = 'bg-pink-500 hover:bg-pink-600 shadow-pink-700/50';
 
                 } else {
                     displayLabel = 'Set Countdown (Auto-Rest)';
@@ -292,7 +396,7 @@
 
                     buttonText = 'Manual Stop & Start Rest';
                     buttonAction = handleManualSetEnd; 
-                    buttonColor = 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-800/50';
+                    buttonColor = 'bg-pink-500 hover:bg-pink-600 shadow-pink-700/50';
                 }
             
             } else if (mode === 'rest') {
@@ -310,7 +414,7 @@
 
 
             const strokeDashoffset = circumference - (progressPercentage / 100) * circumference;
-            const progressColor = mode === 'set' && !isRecordingSetOne ? '#a5b4fc' : '#10b981';
+            const progressColor = mode === 'set' && !isRecordingSetOne ? '#ffd700' : '#10b981';
             const backgroundColor = mode !== 'off' ? 'bg-gray-800/50' : 'bg-gray-800/50';
             const ringBaseColor = targetSetDuration > 0 && !isRecordingSetOne ? '#374151' : '#4b5563';
 
@@ -325,7 +429,7 @@
                         e('span', { className: "text-lg font-bold w-12 text-center text-white" }, `${time}s`),
                         e('button', { 
                             onClick: () => setTime(Math.min(180, time + 15)), 
-                            className: "w-8 h-8 flex items-center justify-center bg-indigo-600 rounded-lg text-lg active:scale-95 transition"
+                            className: "w-8 h-8 flex items-center justify-center bg-pink-500 rounded-lg text-lg active:scale-95 transition"
                         }, "+")
                     )
                 )
@@ -349,7 +453,7 @@
                             })
                         ) : null,
                         (isRecordingSetOne && mode === 'set') && (
-                            e('circle', { cx: "50", cy: "50", r: "45", fill: "none", stroke: "#a5b4fc", strokeWidth: "4", className: "timer-flash" })
+                            e('circle', { cx: "50", cy: "50", r: "45", fill: "none", stroke: "#ffd700", strokeWidth: "4", className: "timer-flash" })
                         )
                     ),
                     e('div', { className: "flex flex-col items-center" },
@@ -368,7 +472,7 @@
                     targetSetDuration > 0 && (
                         e('div', { className: "p-3 bg-gray-800 rounded-xl border border-gray-700 text-center" },
                             e('span', { className: "text-xs font-medium text-gray-400" }, "Target Set Duration (Set 1 Time):"),
-                            e('p', { className: "text-xl font-bold text-indigo-400" }, formatTime(targetSetDuration))
+                            e('p', { className: "text-xl font-bold text-pink-300" }, formatTime(targetSetDuration))
                         )
                     ),
                     e('button', { 
@@ -388,7 +492,7 @@
 
 
         // 1. RADAR CHART 
-        const RadarChart = ({ currentData, lastWeekData, muscles, title, color, currentTotal, lastWeekTotal }) => {
+        const RadarChart = ({ currentData, lastWeekData, muscles, title, color = '#ff69b4', currentTotal, lastWeekTotal }) => {
             const size = 280; 
             const center = size / 2;
             const radius = 90;
@@ -417,17 +521,17 @@
 
             return e('div', { className: "flex flex-col items-center mb-4" },
                 e('div', { className: "text-center mb-4 w-full" },
-                    e('h3', { className: "text-sm font-bold tracking-wider text-gray-400 uppercase" }, title),
+                    e('h3', { className: "text-sm font-bold tracking-wider text-pink-400 uppercase" }, title),
                     e('div', { className: "text-2xl font-extrabold", style: { color: color } }, `${currentTotal} Sets`),
-                    e('div', { className: "text-xs text-gray-500 mt-1" }, `(Last Week: ${lastWeekTotal} Sets)`)
+                    e('div', { className: "text-xs text-pink-400 mt-1" }, `(Last Week: ${lastWeekTotal} Sets)`)
                 ),
                 e('div', { className: "relative" },
                     e('svg', { width: size, height: size, className: "overflow-visible" },
                         axisLabels.map((scale, index) => {
                             const r = radius * (index + 1) / 3;
                             return e('g', { key: scale },
-                                e('circle', { cx: center, cy: center, r: r, fill: "none", stroke: "#374151", strokeDasharray: "4 4" }),
-                                e('text', { x: center + 5, y: center - r - 5, fill: "#9ca3af", fontSize: "9" }, axisLabels[index])
+                                e('circle', { cx: center, cy: center, r: r, fill: "none", stroke: "#ffffff", strokeDasharray: "4 4" }),
+                                e('text', { x: center + 5, y: center - r - 5, fill: "#ffffff", fontSize: "9" }, axisLabels[index])
                             );
                         }),
 
@@ -435,10 +539,10 @@
                             const angle = i * angleStep - Math.PI / 2;
                             const x = center + Math.cos(angle) * radius;
                             const y = center + Math.sin(angle) * radius;
-                            return e('line', { key: i, x1: center, y1: center, x2: x, y2: y, stroke: "#374151" });
+                            return e('line', { key: i, x1: center, y1: center, x2: x, y2: y, stroke: "#ffffff" });
                         }),
                         
-                        e('polygon', { points: lastWeekPoints, fill: "#4b5563", fillOpacity: "0.4", stroke: "#6b7280", strokeWidth: "1" }),
+                        e('polygon', { points: lastWeekPoints, fill: "#ffffff", fillOpacity: "0.2", stroke: "#ffffff", strokeWidth: "1" }),
                         e('polygon', { points: currentPoints, fill: color, fillOpacity: "0.4", stroke: color, strokeWidth: "2" }),
 
                         muscles.map((m, i) => {
@@ -463,22 +567,23 @@
                                 dy: dy, 
                                 textAnchor: anchor, 
                                 dominantBaseline: "middle", 
-                                fill: "#9ca3af", 
+                                fill: "#ffffff", 
                                 fontSize: "9", 
                                 fontWeight: "bold"
                             }, m);
                         })
                     ),
-                    e('div', { className: "flex justify-center space-x-4 mt-4 text-xs" },
+                    e('div', { className: "flex justify-center space-x-4 mt-4 text-xs text-white" },
                         e('span', { className: "flex items-center" }, e('div', { className: "w-3 h-3 mr-1", style: {backgroundColor: color, opacity: 0.6} }), "Current"),
-                        e('span', { className: "flex items-center" }, e('div', { className: "w-3 h-3 bg-gray-500 rounded-full mr-1" }), "Last Week")
+                        e('span', { className: "flex items-center" }, e('div', { className: "w-3 h-3 bg-white rounded-full mr-1" }), "Last Week")
                     )
                 )
             );
         };
 
         // 2. Header Component 
-        const Header = ({ date, view, changeDay, setView }) => {
+        const Header = ({ date, view, changeDay, setView, theme }) => {
+            const t = THEMES[theme];
             const isStatsView = view === 'stats';
             const isLogView = view === 'day' || view === 'calendar';
             const navDelta = isStatsView ? 7 : 1; 
@@ -497,30 +602,30 @@
                     onClick: () => setView(view === 'calendar' ? 'day' : 'calendar'), 
                     className: "flex flex-col items-center cursor-pointer transition w-auto active:scale-95"
                 },
-                    e('span', { className: "text-lg font-bold text-white tracking-wide" }, date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
-                    e('span', { className: `text-xs ${view === 'calendar' ? 'text-indigo-400' : 'text-gray-500'}` }, `${date.getFullYear()} ${view === 'calendar' ? '▲' : '▼'}`)
+                    e('span', { className: `text-lg font-bold ${t.text} tracking-wide` }, date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                    e('span', { className: `text-xs ${view === 'calendar' ? t.textAccent : t.textSecondary}` }, `${date.getFullYear()} ${view === 'calendar' ? '▲' : '▼'}`)
                 );
             } else if (isStatsView) {
                 showArrows = true;
                 centerContent = e('div', { className: "flex flex-col items-center" },
-                    e('span', { className: "text-lg font-bold text-white tracking-wide" }, "Analysis"),
-                    e('span', { className: "text-xs font-semibold text-gray-400 mt-0.5" }, weekLabel)
+                    e('span', { className: `text-lg font-bold ${t.text} tracking-wide` }, "Analysis"),
+                    e('span', { className: `text-xs font-semibold ${t.textSecondary} mt-0.5` }, weekLabel)
                 );
             } else if (view === 'timer') {
                  showArrows = false;
-                 centerContent = e('span', { className: "text-lg font-bold text-white tracking-wide" }, "Workout Timer");
+                 centerContent = e('span', { className: `text-lg font-bold ${t.text} tracking-wide` }, "Workout Timer");
             } else if (view === 'settings') {
                 showArrows = false;
-                centerContent = e('span', { className: "text-lg font-bold text-white tracking-wide" }, "Settings");
+                centerContent = e('span', { className: `text-lg font-bold ${t.text} tracking-wide` }, "Settings");
             }
 
-            return e('div', { className: "sticky top-0 z-50 bg-gray-900 border-b border-gray-800 p-4 shadow-xl" },
+            return e('div', { className: `sticky top-0 z-50 ${t.bgCard} border-b ${t.border} p-4 shadow-xl` },
                 e('div', { className: "flex justify-between items-center max-w-md mx-auto" },
-                    e('button', { onClick: () => changeDay(-navDelta), className: `p-2 text-gray-400 hover:text-white active:scale-90 transition ${showArrows ? '' : 'invisible'}` },
+                    e('button', { onClick: () => changeDay(-navDelta), className: `p-2 ${t.textSecondary} hover:${t.text} active:scale-90 transition ${showArrows ? '' : 'invisible'}` },
                         e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M15 19l-7-7 7-7" }))
                     ),
                     e('div', { className: 'flex-1 flex justify-center' }, centerContent),
-                    e('button', { onClick: () => changeDay(navDelta), className: `p-2 text-gray-400 hover:text-white active:scale-90 transition ${showArrows ? '' : 'invisible'}` },
+                    e('button', { onClick: () => changeDay(navDelta), className: `p-2 ${t.textSecondary} hover:${t.text} active:scale-90 transition ${showArrows ? '' : 'invisible'}` },
                         e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M9 5l7 7-7 7" }))
                     )
                 )
@@ -528,60 +633,132 @@
         }
 
         // 3. DayLogger Component 
-        const DayLogger = ({ currentLog, updateSet, openGroup, setOpenGroup }) => e('div', { className: "p-4 pb-24 space-y-4" },
-            Object.keys(GROUPS).map(groupName => {
-                const isOpen = openGroup === groupName;
-                const groupSetCount = GROUPS[groupName].reduce((sum, m) => sum + (currentLog[m] || 0), 0);
-                
-                return e('div', { key: groupName, className: "bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700" },
-                    e('div', { 
-                        onClick: () => setOpenGroup(isOpen ? null : groupName),
-                        className: `p-4 flex justify-between items-center cursor-pointer transition-colors ${isOpen ? 'bg-indigo-900/30' : 'hover:bg-gray-750'}`
-                    },
-                        e('div', { className: "flex items-center space-x-3" },
-                            e('div', { className: `w-2 h-8 rounded-full ${groupSetCount > 0 ? 'bg-green-500' : 'bg-gray-600'}` }),
-                            e('h3', { className: "font-bold text-lg" }, groupName)
-                        ),
-                        e('div', { className: "flex items-center space-x-3" },
-                            groupSetCount > 0 && e('span', { className: "text-xs bg-black/30 px-2 py-1 rounded text-green-400" }, `${groupSetCount} sets`),
-                            e('span', { className: "text-gray-400 text-xl" }, isOpen ? '−' : '+')
-                        )
-                    ),
-                    isOpen && e('div', { className: "bg-gray-900/50 p-2 divide-y divide-gray-800" },
-                        GROUPS[groupName].map(muscle => e('div', { key: muscle, className: "flex justify-between items-center p-3 animate-fade-in" },
-                            e('span', { className: "text-gray-300 font-medium" }, muscle),
-                            e('div', { className: "flex items-center space-x-3 bg-gray-800 rounded-lg p-1" },
-                                e('button', { 
-                                    onClick: () => updateSet(muscle, -1),
-                                    className: "w-10 h-10 flex items-center justify-center bg-gray-700 rounded text-gray-300 active:bg-red-900 active:text-white transition"
-                                }, e('svg', { width: "16", height: "2", fill: "currentColor" }, e('rect', { width: "16", height: "2", rx: "1" }))),
-                                
-                                e('span', { className: "w-8 text-center text-xl font-bold text-white" }, currentLog[muscle] || 0),
+        // 3. DayLogger Component (with Bodyweight Input)
+        const DayLogger = ({ currentLog, updateSet, openGroup, setOpenGroup, currentDate, bodyweight, setBodyweight, theme }) => {
+            const [bodyweightInput, setBodyweightInput] = useState(bodyweight[currentDate] || '');
+            const t = THEMES[theme];
+            
+            const handleBodyweightChange = (value) => {
+                setBodyweightInput(value);
+                if (value && !isNaN(parseFloat(value))) {
+                    const bw = parseFloat(value);
+                    setBodyweight(prev => ({ ...prev, [currentDate]: bw }));
+                } else if (!value) {
+                    setBodyweight(prev => {
+                        const updated = { ...prev };
+                        delete updated[currentDate];
+                        return updated;
+                    });
+                }
+            };
 
-                                e('button', { 
-                                    onClick: () => updateSet(muscle, 1),
-                                    className: "w-10 h-10 flex items-center justify-center bg-indigo-600 rounded text-white active:bg-indigo-400 transition shadow-lg shadow-indigo-900/50"
-                                }, e('svg', { width: "16", height: "16", fill: "currentColor" }, e('path', { d: "M7 0h2v16H7z" }), e('path', { d: "M0 7h16v2H0z" })))
-                            )
-                        ))
+            return e('div', { className: `p-4 pb-24 space-y-4 ${t.bg}` },
+                // Bodyweight Input Section
+                e('div', { className: `${t.bgCard} p-4 rounded-xl shadow-lg border ${t.border}` },
+                    e('label', { className: `block text-sm font-semibold ${t.textAccent} mb-2` }, "Bodyweight (kg)"),
+                    e('div', { className: "flex items-center space-x-2" },
+                        e('input', {
+                            type: 'number',
+                            value: bodyweightInput,
+                            onChange: (ev) => handleBodyweightChange(ev.target.value),
+                            placeholder: 'Enter weight',
+                            className: `flex-1 px-3 py-2 ${t.bgCardDark} border ${t.border} rounded-lg ${t.text} focus:outline-none transition`
+                        }),
+                        e('span', { className: `${t.textSecondary} text-sm` }, bodyweightInput ? `${bodyweightInput} kg` : 'No entry')
                     )
-                );
-            })
-        );
+                ),
+
+                // Exercise Groups
+                Object.keys(GROUPS).map(groupName => {
+                    const isOpen = openGroup === groupName;
+                    const groupSetCount = GROUPS[groupName].reduce((sum, m) => sum + (currentLog[m] || 0), 0);
+                    
+                    return e('div', { key: groupName, className: `${t.bgCard} rounded-xl overflow-hidden shadow-lg border ${t.border}` },
+                        e('div', { 
+                            onClick: () => setOpenGroup(isOpen ? null : groupName),
+                            className: `p-4 flex justify-between items-center cursor-pointer transition-colors ${isOpen ? `${t.secondary}` : ''}`
+                        },
+                            e('div', { className: "flex items-center space-x-3" },
+                                e('div', { className: `w-2 h-8 rounded-full ${groupSetCount > 0 ? 'bg-green-500' : 'bg-gray-600'}` }),
+                                e('h3', { className: `font-bold text-lg ${t.text}` }, groupName)
+                            ),
+                            e('div', { className: "flex items-center space-x-3" },
+                                groupSetCount > 0 && e('span', { className: "text-xs bg-black/30 px-2 py-1 rounded text-green-400" }, `${groupSetCount} sets`),
+                                e('span', { className: `${t.textSecondary} text-xl` }, isOpen ? '−' : '+')
+                            )
+                        ),
+                        isOpen && e('div', { className: `${t.bgCardDark}/50 p-2 divide-y ${t.border}` },
+                            GROUPS[groupName].map(muscle => e('div', { key: muscle, className: "flex justify-between items-center p-3 animate-fade-in" },
+                                e('span', { className: `${t.text} font-medium` }, muscle),
+                                e('div', { className: `flex items-center space-x-3 ${t.bgCardDark} rounded-lg p-1` },
+                                    e('button', { 
+                                        onClick: () => updateSet(muscle, -1),
+                                        className: `w-10 h-10 flex items-center justify-center ${t.bgCard} rounded ${t.textSecondary} active:bg-red-900 active:text-white transition`
+                                    }, e('svg', { width: "16", height: "2", fill: "currentColor" }, e('rect', { width: "16", height: "2", rx: "1" }))),
+                                    
+                                    e('span', { className: `w-8 text-center text-xl font-bold ${t.text}` }, currentLog[muscle] || 0),
+
+                                    e('button', { 
+                                        onClick: () => updateSet(muscle, 1),
+                                        className: `w-10 h-10 flex items-center justify-center ${t.accent} rounded text-white active:${t.accentHover} transition shadow-lg`
+                                    }, e('svg', { width: "16", height: "16", fill: "currentColor" }, e('path', { d: "M7 0h2v16H7z" }), e('path', { d: "M0 7h16v2H0z" })))
+                                )
+                            ))
+                        )
+                    );
+                })
+            );
+        };
 
         // 4. Settings View Component 
-        const SettingsView = ({ handleExport, handleImport }) => {
+        const SettingsView = ({ handleExport, handleImport, theme, setTheme }) => {
             const fileInputRef = useRef(null);
+            const t = THEMES[theme];
 
-            return e('div', { className: "p-4 pb-24 space-y-6 animate-fade-in" },
-                e('div', { className: "bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700 space-y-4" },
-                    e('h3', { className: "text-lg font-bold text-indigo-400 border-b border-gray-700 pb-2" }, "Data Management (Local Backup)"),
-                    e('p', { className: "text-sm text-gray-400" }, "Since your data is saved only in your browser, use the Export button to create a safe backup file for transfer or restoration."),
+            const handleThemeChange = (newTheme) => {
+                setTheme(newTheme);
+                localStorage.setItem(THEME_STORAGE_KEY, newTheme);
+            };
+
+            return e('div', { className: `p-4 pb-24 space-y-6 animate-fade-in ${t.bg}` },
+                // Theme Selection Section
+                e('div', { className: `${t.bgCard} p-4 rounded-xl shadow-lg border ${t.border} space-y-4` },
+                    e('h3', { className: `text-lg font-bold ${t.textAccent} border-b ${t.border} pb-2` }, "Theme"),
+                    e('div', { className: "flex space-x-3" },
+                        e('button', {
+                            onClick: () => handleThemeChange('indigo'),
+                            className: `flex-1 py-3 rounded-lg transition ${
+                                theme === 'indigo'
+                                    ? 'bg-indigo-600 text-white shadow-lg'
+                                    : `${t.bgCardDark} ${t.text} hover:opacity-80`
+                            }`
+                        }, e('div', { className: "flex items-center justify-center space-x-2" },
+                            e('div', { className: "w-4 h-4 rounded-full bg-indigo-500" }),
+                            e('span', null, "Indigo")
+                        )),
+                        e('button', {
+                            onClick: () => handleThemeChange('pink'),
+                            className: `flex-1 py-3 rounded-lg transition ${
+                                theme === 'pink'
+                                    ? 'bg-pink-600 text-white shadow-lg'
+                                    : `${t.bgCardDark} ${t.text} hover:opacity-80`
+                            }`
+                        }, e('div', { className: "flex items-center justify-center space-x-2" },
+                            e('div', { className: "w-4 h-4 rounded-full bg-yellow-500" }),
+                            e('span', null, "Pink")
+                        ))
+                    )
+                ),
+                
+                // Data Management Section
+                e('div', { className: `${t.bgCard} p-4 rounded-xl shadow-lg border ${t.border} space-y-4` },
+                    e('h3', { className: `text-lg font-bold ${t.textAccent} border-b ${t.border} pb-2` }, "Data Management (Local Backup)"),
+                    e('p', { className: `text-sm ${t.textSecondary}` }, "Since your data is saved only in your browser, use the Export button to create a safe backup file for transfer or restoration."),
                     e('div', { className: "flex flex-col space-y-3 pt-2" },
                         
                         e('button', { 
                             onClick: handleExport,
-                            className: "p-3 bg-gray-700 text-white rounded-xl shadow-lg hover:bg-gray-600 transition active:scale-[.98]"
+                            className: `p-3 ${t.bgCardDark} ${t.text} rounded-xl shadow-lg hover:opacity-80 transition active:scale-[.98]`
                         },
                             e('div', { className: "flex items-center justify-center space-x-2" },
                                 e('svg', { width: "20", height: "20", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M4 14v5a2 2 0 002 2h12a2 2 0 002-2v-5M12 3v12m-4-8l4 4 4-4" })),
@@ -598,7 +775,7 @@
                         }),
                         e('button', { 
                             onClick: () => fileInputRef.current.click(),
-                            className: "p-3 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-500 transition active:scale-[.98]"
+                            className: `p-3 ${t.accent} text-white rounded-xl shadow-lg hover:${t.accentHover} transition active:scale-[.98]`
                         },
                             e('div', { className: "flex items-center justify-center space-x-2" },
                                 e('svg', { width: "20", height: "20", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M4 14v5a2 2 0 002 2h12a2 2 0 002-2v-5M12 3v12m4-4l-4 4-4-4" })),
@@ -625,7 +802,7 @@
             for(let i=1; i<=daysInMonth; i++) days.push(i);
 
             return e('div', { className: "p-6 animate-fade-in" },
-                e('h2', { className: "text-xl font-bold text-indigo-400 mb-4" }, "Activity Log"),
+                e('h2', { className: "text-xl font-bold text-pink-300 mb-4" }, "Activity Log"),
                 e('div', { className: "grid grid-cols-7 gap-2 mb-2 text-center text-xs text-gray-500" },
                     e('div', null, "M"), e('div', null, "T"), e('div', null, "W"), e('div', null, "T"), e('div', null, "F"), e('div', null, "S"), e('div', null, "S")
                 ),
@@ -641,7 +818,7 @@
                         return e('div', { 
                             key: i,
                             onClick: () => { setDate(new Date(year, month, d)); setView('day'); },
-                            className: `h-10 rounded-md flex items-center justify-center text-xs font-bold cursor-pointer transition ${getIntensityColor(total)} ${isSelected ? 'ring-2 ring-indigo-400 scale-110' : ''} ${isToday && !isSelected ? 'border border-white/50' : 'text-transparent hover:text-white/50'}`
+                            className: `h-10 rounded-md flex items-center justify-center text-xs font-bold cursor-pointer transition ${getIntensityColor(total)} ${isSelected ? 'ring-2 ring-pink-300 scale-110' : ''} ${isToday && !isSelected ? 'border border-white/50' : 'text-transparent hover:text-white/50'}`
                         }, d);
                     })
                 ),
@@ -708,24 +885,24 @@
                     e('div', { className: "text-center py-20 text-gray-500" }, "Log sets this week (or last week) to see your volume stats.")
                 ) : (
                     e('div', { className: "space-y-8" },
-                        e('div', { className: "bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700" },
+                        e('div', { className: "bg-pink-900 p-4 rounded-xl shadow-lg border border-pink-700" },
                             e(RadarChart, { 
                                 title: "Upper Body Volume (Push/Pull)", 
                                 currentData: currentUpper.data,
                                 lastWeekData: lastUpper.data,
                                 muscles: UPPER_MUSCLES, 
-                                color: "#6366f1", 
+                                color: "#ff69b4", 
                                 currentTotal: currentUpper.total,
                                 lastWeekTotal: lastUpper.total
                             })
                         ),
-                        e('div', { className: "bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700" },
+                        e('div', { className: "bg-pink-900 p-4 rounded-xl shadow-lg border border-pink-700" },
                             e(RadarChart, { 
                                 title: "Lower Body & Core Volume", 
                                 currentData: currentLower.data,
                                 lastWeekData: lastLower.data,
                                 muscles: LOWER_MUSCLES, 
-                                color: "#10b981", 
+                                color: "#ffd700", 
                                 currentTotal: currentLower.total,
                                 lastWeekTotal: lastLower.total
                             })
@@ -735,58 +912,432 @@
             );
         };
 
-        // 7. Footer Component 
-        const Footer = ({ view, setView, unsaved }) => e('div', { className: "fixed bottom-0 w-full bg-gray-900 border-t border-gray-800 pb-safe" },
-            e('div', { className: "flex justify-around items-center h-16 max-w-md mx-auto relative" },
-                unsaved && e('div', { className: "absolute -top-8 left-0 right-0 text-center" },
-                    e('span', { className: "bg-indigo-600 text-white text-xs px-3 py-1 rounded-full shadow-lg" }, "Saving locally...")
+        // 6. ProgressView Component (Editable Bodyweight + PR Tracker)
+        const ProgressView = ({ bodyweight, prs, setBodyweight, setPRs, theme }) => {
+            const [editMode, setEditMode] = useState(false);
+            const [editingPRs, setEditingPRs] = useState({ ...prs });
+            const [selectedLift, setSelectedLift] = useState(null); // null or 'Squat', 'Bench', 'Deadlift'
+            const t = THEMES[theme];
+
+            const bwDates = Object.keys(bodyweight).sort();
+            const bwValues = bwDates.map(d => bodyweight[d]);
+            const lastBW = bwDates.length > 0 ? bodyweight[bwDates[bwDates.length - 1]] : null;
+            const firstBW = bwDates.length > 0 ? bodyweight[bwDates[0]] : null;
+            const bwTrend = lastBW && firstBW ? (lastBW - firstBW).toFixed(1) : 0;
+
+            // Create simple line chart data
+            const chartHeight = 150;
+            const chartWidth = 300;
+            const maxBW = bwValues.length > 0 ? Math.max(...bwValues) + 5 : 80;
+            const minBW = bwValues.length > 0 ? Math.min(...bwValues) - 5 : 60;
+            const range = maxBW - minBW;
+
+            const points = bwValues.map((val, idx) => {
+                const x = (idx / Math.max(bwValues.length - 1, 1)) * chartWidth;
+                const y = chartHeight - ((val - minBW) / range) * chartHeight;
+                return `${x},${y}`;
+            }).join(' ');
+
+            const handlePRChange = (prKey, field, value) => {
+                setEditingPRs(prev => ({
+                    ...prev,
+                    [prKey]: { ...prev[prKey], [field]: value === '' ? null : (field === 'weight' || field === 'reps' ? (value ? parseFloat(value) : null) : value) }
+                }));
+            };
+
+            const handleAddCustomPR = () => {
+                setEditingPRs(prev => ({
+                    ...prev,
+                    Custom: [...(prev.Custom || []), { name: '', weight: null, reps: null, date: formatDate(new Date()) }]
+                }));
+            };
+
+            const handleDeleteCustomPR = (idx) => {
+                setEditingPRs(prev => ({
+                    ...prev,
+                    Custom: prev.Custom.filter((_, i) => i !== idx)
+                }));
+            };
+
+            const handleSavePRs = () => {
+                setPRs(editingPRs);
+                setEditMode(false);
+            };
+
+            // Detail Modal for Compound 1RMs
+            const CompoundDetailModal = ({ lift }) => {
+                if (!lift) return null;
+                
+                const liftKey = lift === 'Squat' ? '1RM_Squat' : lift === 'Bench' ? '1RM_Bench' : '1RM_Deadlift';
+                const data = editingPRs[liftKey] || {};
+                
+                // Build history (for now, just showing current entry as single point)
+                const entries = data.date ? [{ weight: data.weight, date: data.date }] : [];
+                const maxWeight = entries.length > 0 ? Math.max(...entries.map(e => e.weight)) : 100;
+                const minWeight = entries.length > 0 ? Math.min(...entries.map(e => e.weight)) : 80;
+                const weightRange = maxWeight - minWeight || 20;
+
+                const graphHeight = 200;
+                const graphWidth = 280;
+                
+                const graphPoints = entries.map((entry, idx) => {
+                    const x = (idx / Math.max(entries.length - 1, 1)) * graphWidth;
+                    const y = graphHeight - ((entry.weight - minWeight) / weightRange) * graphHeight;
+                    return { x, y, entry };
+                });
+
+                return e('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center z-50" },
+                    e('div', { className: "bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 max-w-md w-full mx-4 animate-fade-in" },
+                        e('div', { className: "flex justify-between items-center mb-4" },
+                            e('h2', { className: "text-xl font-bold text-pink-300" }, `${lift} 1RM History`),
+                            e('button', {
+                                onClick: () => setSelectedLift(null),
+                                className: "text-gray-400 hover:text-white text-2xl leading-none"
+                            }, '✕')
+                        ),
+                        
+                        entries.length === 0 ? (
+                            e('p', { className: "text-center text-gray-400 py-8" }, "No entries yet")
+                        ) : (
+                            e('div', { className: "space-y-4" },
+                                // Graph
+                                e('svg', { width: "100%", height: "200", viewBox: `0 0 ${graphWidth} ${graphHeight}`, preserveAspectRatio: "none", className: "bg-gray-900/30 rounded" },
+                                    e('polyline', {
+                                        points: graphPoints.map(p => `${p.x},${p.y}`).join(' '),
+                                        fill: 'none',
+                                        stroke: '#ff69b4',
+                                        strokeWidth: '2'
+                                    }),
+                                    graphPoints.map((p, idx) => {
+                                        return e('circle', { key: idx, cx: p.x, cy: p.y, r: '4', fill: '#ff69b4' });
+                                    })
+                                ),
+                                
+                                // Stats
+                                e('div', { className: "bg-gray-900 p-3 rounded-lg space-y-2" },
+                                    e('div', { className: "flex justify-between text-sm" },
+                                        e('span', { className: "text-gray-400" }, "Current:"),
+                                        e('span', { className: "font-bold text-pink-300" }, `${data.weight}kg`)
+                                    ),
+                                    e('div', { className: "flex justify-between text-sm" },
+                                        e('span', { className: "text-gray-400" }, "Date:"),
+                                        e('span', { className: "text-gray-300" }, data.date)
+                                    )
+                                )
+                            )
+                        )
+                    )
+                );
+            };
+
+            return e('div', { className: `p-4 pb-24 space-y-6 animate-fade-in ${t.bg}` },
+                // Bodyweight Chart
+                e('div', { className: `${t.bgCard} p-4 rounded-xl shadow-lg border ${t.border}` },
+                    e('h3', { className: `text-lg font-bold ${t.textAccent} mb-4` }, "Bodyweight Trend"),
+                    
+                    bwDates.length === 0 ? (
+                        e('p', { className: `text-center ${t.textSecondary} py-8` }, "Log bodyweight in the Day tab to see trends")
+                    ) : (
+                        e('div', { className: "space-y-4" },
+                            // Stats
+                            e('div', { className: "grid grid-cols-3 gap-2 text-sm" },
+                                e('div', { className: `${t.bgCardDark} p-2 rounded text-center` },
+                                    e('div', { className: `${t.textAccent} font-bold` }, lastBW ? `${lastBW.toFixed(1)} kg` : 'N/A'),
+                                    e('div', { className: `text-xs ${t.textSecondary}` }, "Current")
+                                ),
+                                e('div', { className: `${t.bgCardDark} p-2 rounded text-center` },
+                                    e('div', { className: `font-bold ${bwTrend >= 0 ? 'text-red-400' : 'text-green-400'}` }, `${bwTrend >= 0 ? '+' : ''}${bwTrend} kg`),
+                                    e('div', { className: `text-xs ${t.textSecondary}` }, "Trend")
+                                ),
+                                e('div', { className: `${t.bgCardDark} p-2 rounded text-center` },
+                                    e('div', { className: `${t.textAccent} font-bold` }, bwDates.length),
+                                    e('div', { className: `text-xs ${t.textSecondary}` }, "Entries")
+                                )
+                            ),
+                            // Chart
+                            e('svg', { width: "100%", height: "160", viewBox: `0 0 ${chartWidth} ${chartHeight}`, preserveAspectRatio: "none", className: "bg-gray-900/30 rounded" },
+                                e('polyline', {
+                                    points: points,
+                                    fill: 'none',
+                                    stroke: '#ff69b4',
+                                    strokeWidth: '2'
+                                }),
+                                // Dots on points
+                                bwValues.map((val, idx) => {
+                                    const x = (idx / Math.max(bwValues.length - 1, 1)) * chartWidth;
+                                    const y = chartHeight - ((val - minBW) / range) * chartHeight;
+                                    return e('circle', { key: idx, cx: x, cy: y, r: '3', fill: '#ff69b4' });
+                                })
+                            ),
+                            e('div', { className: "text-xs text-gray-400 text-center" }, `Range: ${minBW.toFixed(0)} - ${maxBW.toFixed(0)} kg`)
+                        )
+                    )
                 ),
 
-                e('button', { onClick: () => setView('day'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'day' ? 'text-indigo-400' : 'text-gray-500'}` },
+                // PR Tracker Box (Editable)
+                e('div', { className: `${t.bgCard} p-4 rounded-xl shadow-lg border ${t.border}` },
+                    e('div', { className: "flex justify-between items-center mb-4" },
+                        e('h3', { className: `text-lg font-bold ${t.textAccent}` }, "Personal Records"),
+                        e('button', {
+                            onClick: () => editMode ? handleSavePRs() : setEditMode(true),
+                            className: `px-3 py-1 rounded text-sm ${editMode ? 'bg-green-600 hover:bg-green-500' : `${t.accent} hover:${t.accentHover}`} text-white transition`
+                        }, editMode ? 'Save' : 'Edit')
+                    ),
+                    
+                    e('div', { className: "space-y-3" },
+                        // Compound 1RMs
+                        editMode ? (
+                            e('div', { className: `${t.bgCardDark} p-3 rounded-lg space-y-3` },
+                                e('h4', { className: `text-sm font-bold ${t.textAccent}` }, "Compound 1RMs"),
+                                ['1RM_Squat', '1RM_Bench', '1RM_Deadlift'].map(pr => {
+                                    const label = pr === '1RM_Squat' ? 'Squat' : pr === '1RM_Bench' ? 'Bench' : 'Deadlift';
+                                    const data = editingPRs[pr] || {};
+                                    return e('div', { key: pr, className: "flex items-center space-x-2" },
+                                        e('label', { className: `text-sm ${t.text} w-16` }, label),
+                                        e('input', {
+                                            type: 'number',
+                                            value: data.weight || '',
+                                            onChange: (ev) => handlePRChange(pr, 'weight', ev.target.value),
+                                            placeholder: 'Weight (kg)',
+                                            className: "flex-1 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none focus:border-pink-400"
+                                        }),
+                                        e('input', {
+                                            type: 'date',
+                                            value: data.date || formatDate(new Date()),
+                                            onChange: (ev) => handlePRChange(pr, 'date', ev.target.value),
+                                            className: "px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none focus:border-pink-400"
+                                        })
+                                    );
+                                })
+                            )
+                        ) : (
+                            e('div', { className: "bg-gray-900 p-3 rounded-lg border border-gray-700" },
+                                e('h4', { className: "text-sm font-bold text-pink-300 mb-2 cursor-pointer hover:text-pink-200 transition" }, "Compound 1RMs (Click to view)"),
+                                e('div', { className: "space-y-2" },
+                                    ['1RM_Squat', '1RM_Bench', '1RM_Deadlift'].map(pr => {
+                                        const label = pr === '1RM_Squat' ? 'Squat' : pr === '1RM_Bench' ? 'Bench' : 'Deadlift';
+                                        const data = editingPRs[pr] || {};
+                                        return e('button', { key: pr, onClick: () => setSelectedLift(label), className: "w-full text-left flex justify-between items-center text-sm p-2 rounded hover:bg-gray-800 transition" },
+                                            e('span', { className: "text-gray-300" }, label),
+                                            e('div', { className: "text-right" },
+                                                data.weight ? e('span', { className: "font-bold text-pink-300" }, `${data.weight} kg`) : e('span', { className: "text-gray-500" }, 'Not set'),
+                                                data.date && e('span', { className: "text-xs text-gray-500 ml-2" }, data.date)
+                                            )
+                                        );
+                                    })
+                                )
+                            )
+                        ),
+                        
+                        // Best Sets
+                        editMode ? (
+                            e('div', { className: "bg-gray-900 p-3 rounded-lg space-y-3" },
+                                e('h4', { className: "text-sm font-bold text-pink-300" }, "Best Sets (Weight x Reps)"),
+                                ['Squat', 'Bench Press', 'Deadlift'].map(pr => {
+                                    const data = editingPRs[pr] || {};
+                                    return e('div', { key: pr, className: "flex items-center space-x-2" },
+                                        e('label', { className: "text-sm text-gray-300 w-24" }, pr),
+                                        e('input', {
+                                            type: 'number',
+                                            value: data.weight || '',
+                                            onChange: (ev) => handlePRChange(pr, 'weight', ev.target.value),
+                                            placeholder: 'Weight',
+                                            className: "w-20 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none focus:border-pink-400"
+                                        }),
+                                        e('span', { className: "text-gray-400 text-sm" }, 'x'),
+                                        e('input', {
+                                            type: 'number',
+                                            value: data.reps || '',
+                                            onChange: (ev) => handlePRChange(pr, 'reps', ev.target.value),
+                                            placeholder: 'Reps',
+                                            className: "w-16 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none focus:border-pink-400"
+                                        }),
+                                        e('input', {
+                                            type: 'date',
+                                            value: data.date || formatDate(new Date()),
+                                            onChange: (ev) => handlePRChange(pr, 'date', ev.target.value),
+                                            className: "px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none focus:border-pink-400"
+                                        })
+                                    );
+                                })
+                            )
+                        ) : (
+                            e('div', { className: "bg-gray-900 p-3 rounded-lg border border-gray-700" },
+                                e('h4', { className: "text-sm font-bold text-pink-300 mb-2" }, "Best Sets"),
+                                e('div', { className: "space-y-2" },
+                                    ['Squat', 'Bench Press', 'Deadlift'].map(pr => {
+                                        const data = editingPRs[pr] || {};
+                                        return e('div', { key: pr, className: "flex justify-between items-center text-sm" },
+                                            e('span', { className: "text-gray-300" }, pr),
+                                            e('div', { className: "text-right" },
+                                                data.weight ? e('span', { className: "font-bold text-pink-300" }, `${data.weight}kg x ${data.reps}`) : e('span', { className: "text-gray-500" }, 'Not set'),
+                                                data.date && e('span', { className: "text-xs text-gray-500 ml-2" }, data.date)
+                                            )
+                                        );
+                                    })
+                                )
+                            )
+                        ),
+                        
+                        // Custom PRs
+                        editMode ? (
+                            e('div', { className: "bg-gray-900 p-3 rounded-lg space-y-3" },
+                                e('div', { className: "flex justify-between items-center mb-2" },
+                                    e('h4', { className: "text-sm font-bold text-pink-300" }, "Custom PRs"),
+                                    e('button', {
+                                        onClick: handleAddCustomPR,
+                                        className: "text-xs bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded transition"
+                                    }, '+ Add')
+                                ),
+                                editingPRs.Custom && editingPRs.Custom.map((pr, idx) => {
+                                    return e('div', { key: idx, className: "flex items-center space-x-2" },
+                                        e('input', {
+                                            type: 'text',
+                                            value: pr.name || '',
+                                            onChange: (ev) => {
+                                                const updated = [...editingPRs.Custom];
+                                                updated[idx].name = ev.target.value;
+                                                setEditingPRs({ ...editingPRs, Custom: updated });
+                                            },
+                                            placeholder: 'Name',
+                                            className: "w-24 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none focus:border-pink-400"
+                                        }),
+                                        e('input', {
+                                            type: 'number',
+                                            value: pr.weight || '',
+                                            onChange: (ev) => {
+                                                const updated = [...editingPRs.Custom];
+                                                updated[idx].weight = ev.target.value ? parseFloat(ev.target.value) : null;
+                                                setEditingPRs({ ...editingPRs, Custom: updated });
+                                            },
+                                            placeholder: 'Weight',
+                                            className: "w-20 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none focus:border-pink-400"
+                                        }),
+                                        e('span', { className: "text-gray-400 text-sm" }, 'x'),
+                                        e('input', {
+                                            type: 'number',
+                                            value: pr.reps || '',
+                                            onChange: (ev) => {
+                                                const updated = [...editingPRs.Custom];
+                                                updated[idx].reps = ev.target.value ? parseFloat(ev.target.value) : null;
+                                                setEditingPRs({ ...editingPRs, Custom: updated });
+                                            },
+                                            placeholder: 'Reps',
+                                            className: "w-16 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none focus:border-pink-400"
+                                        }),
+                                        e('button', {
+                                            onClick: () => handleDeleteCustomPR(idx),
+                                            className: "text-xs bg-red-600 hover:bg-red-500 text-white px-2 py-1 rounded transition"
+                                        }, 'Delete')
+                                    );
+                                })
+                            )
+                        ) : (
+                            editingPRs.Custom && editingPRs.Custom.length > 0 && e('div', { className: "bg-gray-900 p-3 rounded-lg border border-gray-700" },
+                                e('h4', { className: "text-sm font-bold text-pink-300 mb-2" }, "Custom PRs"),
+                                e('div', { className: "space-y-2" },
+                                    editingPRs.Custom.map((pr, idx) => {
+                                        return e('div', { key: idx, className: "flex justify-between items-center text-sm" },
+                                            e('span', { className: "text-gray-300" }, pr.name),
+                                            e('div', { className: "text-right" },
+                                                e('span', { className: "font-bold text-pink-300" }, `${pr.weight}kg x ${pr.reps}`),
+                                                pr.date && e('span', { className: "text-xs text-gray-500 ml-2" }, pr.date)
+                                            )
+                                        );
+                                    })
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                selectedLift && e(CompoundDetailModal, { lift: selectedLift })
+            );
+        };
+
+        // 7. Footer Component 
+        const Footer = ({ view, setView, unsaved, theme }) => {
+            const t = THEMES[theme];
+            return e('div', { className: `fixed bottom-0 w-full ${t.bgCard} border-t ${t.border} pb-safe` },
+            e('div', { className: "flex justify-around items-center h-16 max-w-md mx-auto relative" },
+                unsaved && e('div', { className: "absolute -top-8 left-0 right-0 text-center" },
+                    e('span', { className: `${t.accent} ${t.text} text-xs px-3 py-1 rounded-full shadow-lg` }, "Saving locally...")
+                ),
+
+                e('button', { onClick: () => setView('day'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'day' ? t.textAccent : t.textSecondary}` },
                     e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" })),
                     e('span', { className: "text-[10px] font-bold uppercase" }, "Log")
                 ),
                 
-                e('div', { className: "w-px h-8 bg-gray-800" }),
+                e('div', { className: `w-px h-8 ${t.border}` }),
                 
-                e('button', { onClick: () => setView('timer'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'timer' ? 'text-indigo-400' : 'text-gray-500'}` },
+                e('button', { onClick: () => setView('timer'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'timer' ? t.textAccent : t.textSecondary}` },
                     e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" })),
                     e('span', { className: "text-[10px] font-bold uppercase" }, "Timer")
                 ),
 
-                e('div', { className: "w-px h-8 bg-gray-800" }),
+                e('div', { className: `w-px h-8 ${t.border}` }),
 
-                e('button', { onClick: () => setView('stats'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'stats' ? 'text-indigo-400' : 'text-gray-500'}` },
+                e('button', { onClick: () => setView('stats'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'stats' ? t.textAccent : t.textSecondary}` },
                     e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" })),
                     e('span', { className: "text-[10px] font-bold uppercase" }, "Analysis")
                 ),
 
-                e('div', { className: "w-px h-8 bg-gray-800" }),
+                e('div', { className: `w-px h-8 ${t.border}` }),
 
-                // FIX APPLIED HERE: Removed extra closing backtick from className template literal
-                e('button', { onClick: () => setView('settings'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'settings' ? 'text-indigo-400' : 'text-gray-500'}` },
+                e('button', { onClick: () => setView('progress'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'progress' ? t.textAccent : t.textSecondary}` },
+                    e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M13 7H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V9m-6 4h6m-6-8V4a2 2 0 012-2h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 01.293.707V9" })),
+                    e('span', { className: "text-[10px] font-bold uppercase" }, "Progress")
+                ),
+
+                e('div', { className: `w-px h-8 ${t.border}` }),
+
+                e('button', { onClick: () => setView('settings'), className: `flex flex-col items-center space-y-1 w-full transition ${view === 'settings' ? t.textAccent : t.textSecondary}` },
                     e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z" }), e('path', { d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" })),
                     e('span', { className: "text-[10px] font-bold uppercase" }, "Settings")
                 )
             )
         );
+        };
 
         // 8. MAIN APP Component (The root)
         const App = () => {
             const [date, setDate] = useState(new Date());
             const [logs, setLogs] = useState({});
+            const [bodyweight, setBodyweight] = useState({});
+            const [prs, setPRs] = useState(DEFAULT_PRS);
             const [view, setView] = useState('day');
             const [openGroup, setOpenGroup] = useState('Push');
             const [loading, setLoading] = useState(true);
             const [unsaved, setUnsaved] = useState(false);
+            const [theme, setTheme] = useState('indigo');
             
             const dateStr = formatDate(date);
             const currentLog = logs[dateStr] || {};
 
             useEffect(() => {
-                setLogs(loadLogs());
+                const savedLogs = loadLogs();
+                const savedBW = loadBodyweight();
+                const savedPRs = loadPRs();
+                const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'indigo';
+                setLogs(savedLogs);
+                setBodyweight(savedBW);
+                setPRs(savedPRs);
+                setTheme(savedTheme);
                 setLoading(false);
             }, []);
+
+            useEffect(() => {
+                // Update body class and colors based on theme
+                document.body.className = `min-h-screen font-sans selection:text-white theme-${theme}`;
+                if (theme === 'pink') {
+                    document.body.style.backgroundColor = '#ffc0cb';
+                    document.body.style.color = '#ffffff';
+                } else {
+                    document.body.style.backgroundColor = '#111827';
+                    document.body.style.color = '#f3f4f6';
+                }
+            }, [theme]);
 
             const updateSet = (muscle, delta) => {
                 const oldVal = currentLog[muscle] || 0;
@@ -820,8 +1371,23 @@
                 return () => clearTimeout(timer);
             }, [logs, unsaved, dateStr]);
 
+            // Save bodyweight whenever it changes
+            useEffect(() => {
+                saveBodyweight(bodyweight);
+            }, [bodyweight]);
+
+            // Save PRs whenever they change
+            useEffect(() => {
+                savePRs(prs);
+            }, [prs]);
+
             const handleExport = () => {
-                const dataStr = JSON.stringify(logs, null, 2);
+                const allData = {
+                    logs: logs,
+                    bodyweight: bodyweight,
+                    prs: prs
+                };
+                const dataStr = JSON.stringify(allData, null, 2);
                 const blob = new Blob([dataStr], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -841,15 +1407,32 @@
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     try {
-                        const importedLogs = JSON.parse(e.target.result);
+                        const imported = JSON.parse(e.target.result);
                         
-                        if (typeof importedLogs !== 'object' || importedLogs === null) {
+                        if (typeof imported !== 'object' || imported === null) {
                             console.error("Import failed: File content is not a valid object.");
                             return; 
                         }
                         
-                        setLogs(importedLogs);
-                        saveLogs(importedLogs);
+                        // Handle both new format (with logs/bodyweight/prs keys) and old format (direct logs)
+                        if (imported.logs !== undefined) {
+                            setLogs(imported.logs);
+                            saveLogs(imported.logs);
+                        } else {
+                            setLogs(imported);
+                            saveLogs(imported);
+                        }
+                        
+                        if (imported.bodyweight !== undefined) {
+                            setBodyweight(imported.bodyweight);
+                            saveBodyweight(imported.bodyweight);
+                        }
+                        
+                        if (imported.prs !== undefined) {
+                            setPRs(imported.prs);
+                            savePRs(imported.prs);
+                        }
+                        
                         console.log("Data imported successfully!");
 
                     } catch (error) {
@@ -868,12 +1451,13 @@
 
             if (loading) return e('div', { className: "flex items-center justify-center h-screen text-indigo-500 animate-pulse" }, "Loading Local Data...");
 
-            return e('div', { className: "max-w-md mx-auto min-h-screen bg-gray-900 relative" },
+            return e('div', { className: `max-w-md mx-auto min-h-screen ${THEMES[theme].bg} relative` },
                 e(Header, { 
                     date: date,
                     view: view,
                     changeDay: changeDay,
-                    setView: setView
+                    setView: setView,
+                    theme: theme
                 }),
                 
                 e('div', { className: "animate-fade-in" },
@@ -881,7 +1465,11 @@
                         currentLog: currentLog, 
                         updateSet: updateSet, 
                         openGroup: openGroup, 
-                        setOpenGroup: setOpenGroup 
+                        setOpenGroup: setOpenGroup,
+                        currentDate: dateStr,
+                        bodyweight: bodyweight,
+                        setBodyweight: setBodyweight,
+                        theme: theme
                     }),
                     view === 'calendar' && e(CalendarView, { 
                         date: date, 
@@ -891,13 +1479,22 @@
                     }),
                     view === 'stats' && e(StatsView, { date: date, logs: logs }),
                     view === 'timer' && e(TimerView, null),
+                    view === 'progress' && e(ProgressView, { 
+                        bodyweight: bodyweight,
+                        prs: prs,
+                        setBodyweight: setBodyweight,
+                        setPRs: setPRs,
+                        theme: theme
+                    }),
                     view === 'settings' && e(SettingsView, { 
                         handleExport: handleExport,
-                        handleImport: handleImport
+                        handleImport: handleImport,
+                        theme: theme,
+                        setTheme: setTheme
                     })
                 ),
 
-                e(Footer, { view: view, setView: setView, unsaved: unsaved })
+                e(Footer, { view: view, setView: setView, unsaved: unsaved, theme: theme })
             );
         };
 
