@@ -627,10 +627,24 @@
 
         // 2. Header Component 
         const Header = ({ date, view, changeDay, setView, theme }) => {
+            const [isOffline, setIsOffline] = useState(!navigator.onLine);
             const t = THEMES[theme];
             const isStatsView = view === 'stats';
             const isLogView = view === 'day' || view === 'calendar';
-            const navDelta = isStatsView ? 7 : 1; 
+            const navDelta = isStatsView ? 7 : 1;
+
+            useEffect(() => {
+                const handleOnline = () => setIsOffline(false);
+                const handleOffline = () => setIsOffline(true);
+                
+                window.addEventListener('online', handleOnline);
+                window.addEventListener('offline', handleOffline);
+                
+                return () => {
+                    window.removeEventListener('online', handleOnline);
+                    window.removeEventListener('offline', handleOffline);
+                };
+            }, []); 
 
             const currentMonday = getMonday(date);
             const sunday = new Date(currentMonday);
@@ -664,6 +678,9 @@
             }
 
             return e('div', { className: `sticky top-0 z-50 ${t.bgCard} border-b ${t.border} p-4 shadow-xl` },
+                isOffline && e('div', { className: `w-full ${t.bgCardDark} text-center py-1 text-xs ${t.textSecondary} border-b ${t.border}` },
+                    e('span', null, "● Offline Mode - Working with cached data")
+                ),
                 e('div', { className: "flex justify-between items-center max-w-md mx-auto" },
                     e('button', { onClick: () => changeDay(-navDelta), className: `p-2 ${t.textSecondary} hover:${t.text} active:scale-90 transition ${showArrows ? '' : 'invisible'}` },
                         e('svg', { width: "24", height: "24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, e('path', { d: "M15 19l-7-7 7-7" }))
