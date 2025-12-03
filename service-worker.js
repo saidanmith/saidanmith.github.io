@@ -1,4 +1,12 @@
-const CACHE_NAME = 'gym-tracker-cache-v1';
+﻿// ========================================
+// CACHE VERSION - UPDATE ON EACH DEPLOYMENT
+// ========================================
+// Update BUILD_DATE to today's date (YYYYMMDD format) when deploying
+// Example: If deploying on Dec 3, 2025, use '20251203'
+// This forces the service worker to create a new cache and update users
+// ========================================
+const BUILD_DATE = '20251203'; // ← Change this to today's date (YYYYMMDD) when deploying
+const CACHE_NAME = `gym-tracker-cache-${BUILD_DATE}`;
 const urlsToCache = [
     '/',
     '/index.html',
@@ -12,7 +20,9 @@ const urlsToCache = [
 
 // Install event: Caching essential files
 self.addEventListener('install', event => {
-    // Perform install steps
+    // Force the waiting service worker to become the active service worker
+    self.skipWaiting();
+    
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
@@ -27,58 +37,66 @@ self.addEventListener('install', event => {
 
 // Activate event: Cleaning up old caches
 self.addEventListener('activate', event => {
-    const cacheWhitelist = [CACHE_NAME];
+    // Take control of all pages immediately
     event.waitUntil(
-        caches.keys().then(cacheNames => {
-            return Promise.all(
-                cacheNames.map(cacheName => {
-                    if (cacheWhitelist.indexOf(cacheName) === -1) {
-                        console.log('Service Worker: Deleting old cache:', cacheName);
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        })
+        Promise.all([
+            // Delete old caches
+            caches.keys().then(cacheNames => {
+                return Promise.all(
+                    cacheNames.map(cacheName => {
+                        if (cacheName !== CACHE_NAME) {
+                            console.log('Service Worker: Deleting old cache:', cacheName);
+                            return caches.delete(cacheName);
+                        }
+                    })
+                );
+            }),
+            // Claim all clients immediately
+            self.clients.claim()
+        ])
     );
 });
 
-// Fetch event: Serve content from cache first, then fall back to network
+// Fetch event: Network first, fallback to cache (for updates)
 self.addEventListener('fetch', event => {
+    // Only handle GET requests
+    if (event.request.method !== 'GET') {
+        return;
+    }
+
     event.respondWith(
-        caches.match(event.request)
-            .then(response => {
-                // Cache hit - return response
-                if (response) {
-                    return response;
+        fetch(event.request)
+            .then(networkResponse => {
+                // Check if we received a valid response
+                if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+                    return networkResponse;
                 }
-                // No cache hit - fetch from network
-                return fetch(event.request).then(
-                    networkResponse => {
-                        // Check if we received a valid response
-                        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-                            return networkResponse;
+
+                // Clone the response for caching
+                const responseToCache = networkResponse.clone();
+
+                // Update cache in background
+                caches.open(CACHE_NAME)
+                    .then(cache => {
+                        cache.put(event.request, responseToCache);
+                    });
+
+                return networkResponse;
+            })
+            .catch(error => {
+                // Network failed, try cache
+                console.log('Service Worker: Network failed, trying cache', error);
+                return caches.match(event.request)
+                    .then(cachedResponse => {
+                        if (cachedResponse) {
+                            return cachedResponse;
                         }
-
-                        // IMPORTANT: Clone the response. A response is a stream
-                        // and can only be consumed once.
-                        const responseToCache = networkResponse.clone();
-
-                        caches.open(CACHE_NAME)
-                            .then(cache => {
-                                // Only cache GET requests
-                                if (event.request.method === 'GET') {
-                                    cache.put(event.request, responseToCache);
-                                }
-                            });
-
-                        return networkResponse;
-                    }
-                ).catch(error => {
-                    // This catch block handles network failures.
-                    console.error('Service Worker: Fetch failed; returning offline page.', error);
-                    // Optionally, return a generic offline response here if needed.
-                    return new Response('Network request failed and no cache available.', { status: 503 });
-                });
+                        // No cache available
+                        return new Response('Network request failed and no cache available.', { 
+                            status: 503,
+                            statusText: 'Service Unavailable'
+                        });
+                    });
             })
     );
 });

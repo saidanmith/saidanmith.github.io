@@ -18,8 +18,39 @@
             window.addEventListener('load', () => {
                 // The service worker file must be at the root of the serving folder
                 navigator.serviceWorker.register('/service-worker.js')
-                    .then(registration => console.log('SW registered: ', registration.scope))
+                    .then(registration => {
+                        console.log('SW registered: ', registration.scope);
+                        
+                        // Check for updates every hour
+                        setInterval(() => {
+                            registration.update();
+                        }, 60 * 60 * 1000);
+                        
+                        // Listen for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            if (newWorker) {
+                                newWorker.addEventListener('statechange', () => {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        // New service worker available, prompt user to reload
+                                        if (confirm('New version available! Reload to update?')) {
+                                            window.location.reload();
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    })
                     .catch(registrationError => console.log('SW registration failed: ', registrationError));
+            });
+            
+            // Listen for controller change (when new SW takes control)
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
             });
         }
     </script>
