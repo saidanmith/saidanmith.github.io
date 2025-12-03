@@ -3,18 +3,23 @@
 
 Write-Host "Starting deployment..." -ForegroundColor Cyan
 
-# Step 1: Update BUILD_DATE in service-worker.js to today's date
+# Step 1: Update BUILD_DATE in both service-worker.js and index.html to today's date
 $today = Get-Date -Format 'yyyyMMdd'
 Write-Host "Updating cache version to: $today" -ForegroundColor Yellow
 
+# Update service-worker.js
 $serviceWorkerPath = "service-worker.js"
-$content = Get-Content $serviceWorkerPath -Raw -Encoding UTF8
+$swContent = Get-Content $serviceWorkerPath -Raw -Encoding UTF8
+$swContent = $swContent -replace "const BUILD_DATE = '[0-9]{8}';", "const BUILD_DATE = '$today';"
+Set-Content -Path $serviceWorkerPath -Value $swContent -NoNewline -Encoding UTF8
 
-# Update the BUILD_DATE line - find any 8-digit date and replace it
-$content = $content -replace "const BUILD_DATE = '[0-9]{8}';", "const BUILD_DATE = '$today';"
+# Update index.html
+$indexPath = "index.html"
+$indexContent = Get-Content $indexPath -Raw -Encoding UTF8
+$indexContent = $indexContent -replace "const BUILD_DATE = '[0-9]{8}';", "const BUILD_DATE = '$today';"
+Set-Content -Path $indexPath -Value $indexContent -NoNewline -Encoding UTF8
 
-Set-Content -Path $serviceWorkerPath -Value $content -NoNewline -Encoding UTF8
-Write-Host "[OK] Cache version updated" -ForegroundColor Green
+Write-Host "[OK] Cache version updated in both files" -ForegroundColor Green
 
 # Step 2: Check git status
 Write-Host "`nChecking git status..." -ForegroundColor Cyan

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -124,6 +124,9 @@
         const BODYWEIGHT_KEY = 'localGymTrackerBodyweight';
         const PRSTORAGE_KEY = 'localGymTrackerPRs';
         
+        // App version (must match BUILD_DATE in service-worker.js)
+        const BUILD_DATE = '20251203'; // Format: YYYYMMDD - Update when deploying
+        
         const UPPER_MUSCLES = GROUPS.Push.concat(GROUPS.Pull); 
         const LOWER_MUSCLES = GROUPS["Legs & Core"];
 
@@ -186,6 +189,16 @@
             const month = String(d.getMonth() + 1).padStart(2, '0');
             const day = String(d.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
+        }
+        
+        const formatBuildDate = (dateStr) => {
+            // Convert YYYYMMDD to "Dec 3, 2025" format
+            if (!dateStr || dateStr.length !== 8) return dateStr;
+            const year = dateStr.substring(0, 4);
+            const month = parseInt(dateStr.substring(4, 6)) - 1;
+            const day = parseInt(dateStr.substring(6, 8));
+            const date = new Date(year, month, day);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
         
         const getIntensityColor = (count) => {
@@ -752,6 +765,19 @@
             };
 
             return e('div', { className: `p-4 pb-24 space-y-6 animate-fade-in ${t.bg}` },
+                // App Version Info
+                e('div', { className: `${t.bgCard} p-4 rounded-xl shadow-lg border ${t.border}` },
+                    e('div', { className: "flex justify-between items-center" },
+                        e('div', null,
+                            e('h3', { className: `text-sm font-bold ${t.textAccent} uppercase` }, "App Version"),
+                            e('p', { className: `text-lg font-semibold ${t.text} mt-1` }, formatBuildDate(BUILD_DATE))
+                        ),
+                        e('div', { className: `text-xs ${t.textSecondary} text-right` },
+                            e('div', null, `Build: ${BUILD_DATE}`)
+                        )
+                    )
+                ),
+                
                 // Theme Selection Section
                 e('div', { className: `${t.bgCard} p-4 rounded-xl shadow-lg border ${t.border} space-y-4` },
                     e('h3', { className: `text-lg font-bold ${t.textAccent} border-b ${t.border} pb-2` }, "Theme"),
