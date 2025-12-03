@@ -696,15 +696,22 @@
         // 3. DayLogger Component 
         // 3. DayLogger Component (with Bodyweight Input)
         const DayLogger = ({ currentLog, updateSet, openGroup, setOpenGroup, currentDate, bodyweight, setBodyweight, theme }) => {
-            const [bodyweightInput, setBodyweightInput] = useState(bodyweight[currentDate] || '');
+            const [bodyweightInput, setBodyweightInput] = useState('');
             const t = THEMES[theme];
+            
+            // Update input when date changes - each date has its own bodyweight entry
+            useEffect(() => {
+                const bwForDate = bodyweight[currentDate];
+                setBodyweightInput(bwForDate ? String(bwForDate) : '');
+            }, [currentDate, bodyweight]);
             
             const handleBodyweightChange = (value) => {
                 setBodyweightInput(value);
                 if (value && !isNaN(parseFloat(value))) {
                     const bw = parseFloat(value);
                     setBodyweight(prev => ({ ...prev, [currentDate]: bw }));
-                } else if (!value) {
+                } else if (!value || value === '') {
+                    // Clear the entry for this date
                     setBodyweight(prev => {
                         const updated = { ...prev };
                         delete updated[currentDate];
